@@ -7,6 +7,7 @@ rvcc: main.o
 	$(CC) -o rvcc $(CFLAGS) main.o
 
 test: rvcc
+	chmod 777 test.sh
 	./test.sh 
 
 clean:
