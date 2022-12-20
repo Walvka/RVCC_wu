@@ -24,3 +24,5 @@ assert 3 3
 assert 4 4
 assert 13 4+12-3
 assert 67 64-5+8
+assert 44 11+33-3*2+6
+assert 19 7-5+6*4-7
