@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "cppdbg",
+      "request": "launch",
+      "args": ["{ {1; {2;} {alpha=1;} {bata=10;} return 3;} }"],
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "cwd": "/home/wu/RVCC_wu",
+      "program": "/home/wu/RVCC_wu/rvcc",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}
