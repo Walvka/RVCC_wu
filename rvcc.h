@@ -78,6 +78,8 @@ typedef enum {
     ND_LT,          // <
     ND_LE,          // <=
     ND_ASSIGN,      // 赋值
+    ND_ADDR,        // 取地址 &
+    ND_DEREF,       // 解引用 *
     ND_RETURN,      // 返回
     ND_IF,          // "if"，条件判断
     ND_FOR,         // "for" 或 "while"，循环
@@ -91,6 +93,8 @@ typedef enum {
 struct Node {
     NodeKind Kind; // 节点种类
     Node *Next;    // 下一节点，指代下一语句
+    Token *Tok;    // 节点对应的终结符
+
     Node *LHS;     // 左部，left-hand side
     Node *RHS;     // 右部，right-hand side
 
