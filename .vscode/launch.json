@@ -5,11 +5,11 @@
       "name": "C/C++ Runner: Debug Session",
       "type": "cppdbg",
       "request": "launch",
-      "args": [],
+      "args": ["{ if  (------1)  {  1;  2;  return  3; }   else     { return 4; } }"],
       "stopAtEntry": false,
       "externalConsole": false,
       "cwd": "/home/wu/RVCC_wu",
-      "program": "/home/wu/RVCC_wu/build/Debug/outDebug",
+      "program": "/home/wu/RVCC_wu/rvcc",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
