@@ -5,7 +5,7 @@
       "name": "C/C++ Runner: Debug Session",
       "type": "cppdbg",
       "request": "launch",
-      "args": ["{ i=0; j++; while(i<10) { i=i+1; } return i; }"],
+      "args": ["{ 1+1; x=3; y=5; *(&x+1) = *(&x+1) + *(&y-1) ;*(&x+1)=7; return y; }"],
       "stopAtEntry": false,
       "externalConsole": false,
       "cwd": "/home/wu/RVCC_wu",
