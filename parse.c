@@ -28,7 +28,7 @@ Obj *Locals;
 // mul = unary ("*" unary | "/" unary)*
 // unary = ("+" | "-" | "*" | "&") unary | postfix
 // postfix = primary ("[" expr "]")*
-// primary = "(" expr ")" | ident func-args? | num
+// primary = "(" expr ")" | "sizeof" unary | ident funcArgs? | num
 
 // funcall = ident "(" (assign ("," assign)*)? ")"
 static Node *program(Token **Rest, Token *Tok );
@@ -643,7 +643,7 @@ static Node *funCall(Token **Rest, Token *Tok) {
 }
 
 // 解析括号、数字、变量
-// primary = "(" expr ")" | ident args?｜ num
+// primary = "(" expr ")" | "sizeof" unary | ident funcArgs? | num
 // args = "(" ")"
 static Node *primary(Token **Rest, Token *Tok ){
     // "(" expr ")"
@@ -652,7 +652,14 @@ static Node *primary(Token **Rest, Token *Tok ){
         *Rest = skip(Tok, ")");
         return Nd;
     }
-      // ident
+    // "sizeof" unary
+    if (equal(Tok, "sizeof")) {
+        Node *Nd = unary(Rest, Tok->Next);
+        addType(Nd);
+        return newNum(Nd->Ty->Size, Tok);
+    }
+
+    // ident
     if (Tok->Kind == TK_IDENT) {
         // 函数调用
         // args = "(" ")"
