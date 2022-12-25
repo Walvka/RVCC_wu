@@ -5,7 +5,7 @@
       "name": "C/C++ Runner: Debug Session",
       "type": "cppdbg",
       "request": "launch",
-      "args": ["  int main() { return ret3()+ret5(); }"],
+      "args": ["  int main() { return add2(3,4); } int add2(int x, int y) { return x+y; } "],
       "stopAtEntry": false,
       "externalConsole": false,
       "cwd": "/home/wu/RVCC_wu",
