@@ -376,7 +376,6 @@ void codegen(Function *Prog) {
         // 将最早fp保存的值弹栈，恢复fp。
         printf("  # 将最早fp保存的值弹栈，恢复fp和sp\n");
         printf("  ld fp, 0(sp)\n");
-        printf("  addi sp, sp, 8\n");
         // 将ra寄存器弹栈,恢复ra的值
         printf("  # 将ra寄存器弹栈,恢复ra的值\n");
         printf("  ld ra, 8(sp)\n");
