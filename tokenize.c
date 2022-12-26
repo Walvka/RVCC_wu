@@ -236,6 +236,7 @@ static void convertKeywords(Token *Tok) {
 
 // 终结符解析
 Token *tokenize(char *P){
+    P = "int main() { return \"\\1500\"[0]; }";
     CurrentInput = P;
     Token Head = {};
     Token *Cur = &Head;
