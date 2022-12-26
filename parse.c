@@ -141,10 +141,7 @@ static Obj *newGVar(char *Name, Type *Ty) {
 // 新增唯一名称
 static char *newUniqueName(void) {
     static int Id = 0;
-    char *Buf = calloc(1, 20);
-    // 将格式化处理过后的字符串存入Buf
-    sprintf(Buf, ".L..%d", Id++);
-    return Buf;
+    return format(".L..%d", Id++);
 }
 
 // 新增匿名全局变量
@@ -820,7 +817,7 @@ static bool isFunction(Token *Tok) {
 
 // 语法解析入口函数
 // program = (functionDefinition* | global-variable)*
-Obj *parse(Token *Tok) {
+Obj * parse(Token *Tok) {
     Globals = NULL;
 
     while (Tok->Kind != TK_EOF) {

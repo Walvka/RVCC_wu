@@ -177,7 +177,6 @@ Token *tokenize(char *P){
     Token Head = {};
     Token *Cur = &Head;
 
-
     while(*P){
         // 跳过所有空白符如：空格、回车
         if(isspace(*P)){
