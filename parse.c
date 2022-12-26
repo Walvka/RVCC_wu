@@ -29,7 +29,7 @@ Obj *Globals; // 全局变量
 // mul = unary ("*" unary | "/" unary)*
 // unary = ("+" | "-" | "*" | "&") unary | postfix
 // postfix = primary ("[" expr "]")*
-// primary = "(" expr ")" | "sizeof" unary | ident funcArgs? | num
+// primary = "(" expr ")" | "sizeof" unary | ident funcArgs? | str | num
 
 // funcall = ident "(" (assign ("," assign)*)? ")"
 static Node *program(Token **Rest, Token *Tok );
@@ -135,6 +135,27 @@ static Obj *newGVar(char *Name, Type *Ty) {
     Obj *Var = newVar(Name, Ty);
     Var->Next = Globals;
     Globals = Var;
+    return Var;
+}
+
+// 新增唯一名称
+static char *newUniqueName(void) {
+    static int Id = 0;
+    char *Buf = calloc(1, 20);
+    // 将格式化处理过后的字符串存入Buf
+    sprintf(Buf, ".L..%d", Id++);
+    return Buf;
+}
+
+// 新增匿名全局变量
+static Obj *newAnonGVar(Type *Ty) { 
+    return newGVar(newUniqueName(), Ty); 
+}
+
+// 新增字符串字面量
+static Obj *newStringLiteral(char *Str, Type *Ty) {
+    Obj *Var = newAnonGVar(Ty);
+    Var->InitData = Str;
     return Var;
 }
 
@@ -681,9 +702,9 @@ static Node *funCall(Token **Rest, Token *Tok) {
     return Nd;
 }
 
+
 // 解析括号、数字、变量
-// primary = "(" expr ")" | "sizeof" unary | ident funcArgs? | num
-// args = "(" ")"
+// primary = "(" expr ")" | "sizeof" unary | ident funcArgs? | str | num
 static Node *primary(Token **Rest, Token *Tok ){
     // "(" expr ")"
     if(equal(Tok, "(")){
@@ -717,6 +738,14 @@ static Node *primary(Token **Rest, Token *Tok ){
         *Rest = Tok->Next;
         return newVarNode(Var, Tok);
     }
+
+    // str
+    if (Tok->Kind == TK_STR) {
+        Obj *Var = newStringLiteral(Tok->Str, Tok->Ty);
+        *Rest = Tok->Next;
+        return newVarNode(Var, Tok);
+    }
+
     // num
     if(Tok->Kind == TK_NUM){
         Node *Nd = newNum(Tok->Val, Tok);

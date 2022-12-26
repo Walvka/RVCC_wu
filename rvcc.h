@@ -11,16 +11,24 @@
 #include <string.h>
 
 //
+// 共用头文件，定义了多个文件间共同使用的函数和数据
+//
+
+typedef struct Type Type;
+typedef struct Node Node;
+
+//
 // 终结符分析，词法分析
 //
 
 // 为每个终结符都设置种类来表示
 typedef enum{
-    TK_IDENT, // 标记符，可以为变量名、函数名等
-    TK_PUNCT, // 操作符如： + -
-    TK_KEYWORD, // 关键字
-    TK_NUM,   // 数字
-    TK_EOF,   // 文件终止符，即文件的最后
+    TK_IDENT,       // 标记符，可以为变量名、函数名等
+    TK_PUNCT,       // 操作符如： + -
+    TK_KEYWORD,     // 关键字
+    TK_STR,         // 字符串字面量
+    TK_NUM,         // 数字
+    TK_EOF,         // 文件终止符，即文件的最后
 } TokenKind;
 
 // 终结符结构体
@@ -31,6 +39,8 @@ struct Token{
     int Val;        // 值
     char *Loc;      // 在解析的字符串内的位置
     int Len;        // 长度
+    Type *Ty;       // TK_STR使用
+    char *Str;      // 字符串字面量，包括'\0'
 };
 
 // 去除了static用以在多个文件间访问
@@ -48,10 +58,8 @@ Token *tokenize(char *P);
 //
 // 生成AST（抽象语法树），语法解析
 //
-typedef struct Type Type;
-typedef struct Node Node;
 
-// 本地变量
+// 变量 或 函数
 typedef struct Obj Obj;
 struct Obj {
     Obj *Next;  // 指向下一对象
@@ -63,6 +71,9 @@ struct Obj {
     int Offset; // fp的偏移量
     // 函数 或 全局变量
     bool IsFunction;
+
+    // 全局变量
+    char *InitData;
 
     // 函数
     Obj *Params;   // 形参
