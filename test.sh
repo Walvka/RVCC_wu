@@ -18,7 +18,7 @@ assert () {
 
     # 运行程序，传入期待值，将生成结果写入tmp.s汇编文件。
     # 如果运行不成功，则会执行exit退出。成功时会短路exit操作
-    echo "$input" | ./rvcc - > tmp.s || exit
+    echo "$input" | ./rvcc -o tmp.s - || exit
 
     riscv64-unknown-elf-gcc -static tmp.s tmp2.o -o tmp 
     qemu-riscv64 -L $RISCV/sysroot ./tmp

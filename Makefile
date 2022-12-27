@@ -19,7 +19,9 @@ $(OBJS): rvcc.h
 
 test: rvcc
 	chmod 777 test.sh
+	chmod 777 test-driver.sh
 	./test.sh 
+	./test-driver.sh
 
 clean:
 	rm -rf rvcc *.o *.s tmp* a.out

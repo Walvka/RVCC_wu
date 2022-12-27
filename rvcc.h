@@ -197,4 +197,4 @@ Type *funcType(Type *ReturnTy);
 //
 
 // 代码生成入口函数
-void codegen(Obj *Nd);
+void codegen(Obj *Prog, FILE *Out);
