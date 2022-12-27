@@ -1,56 +1,29 @@
-# Prerequisites
-*.d
+# 日志文件
+# *表示当前路径下的任意字符
+*.log 
 
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+# 可重定位文件，C编译过程的中间文件，等待被链接成二进制文件
+# **表示递归匹配路径下的任意字符
+**/*.o
 
-# Linker output
-*.ilk
-*.map
-*.exp
+# 汇编文件
+**/*.s
 
-# Precompiled Headers
-*.gch
-*.pch
+# 临时文件，文件夹内以tmp开头的文件
+/tmp*
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
+# 编译器默认生成的运行文件名
+a.out
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
+# 生成的最终的rvcc可执行文件
+/rvcc
 
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-rvcc
+# 测试生成的可执行文件
+/test/*.exe
 
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
+# CMake生成的文件目录
+build/
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
-
-
-*tmp*
+# IDE相关文件夹
+.cache/
+.vscode/
