@@ -173,12 +173,13 @@ typedef enum {
 struct Type {
     TypeKind Kind;  // 种类
     int Size;       // 大小, sizeof返回的值
+    int Align;      // 对齐
     // 指针
     Type *Base;     // 指向的类型
     // 类型对应名称，如：变量名、函数名
     Token *Name;
     // 数组
-    int ArrayLen; // 数组长度, 元素总个数
+    int ArrayLen;   // 数组长度, 元素总个数
     // 结构体
     Member *Mems;
     // 函数类型
@@ -217,3 +218,4 @@ Type *funcType(Type *ReturnTy);
 
 // 代码生成入口函数
 void codegen(Obj *Prog, FILE *Out);
+int alignTo(int N, int Align);
