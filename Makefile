@@ -25,7 +25,7 @@ $(OBJS): rvcc.h
 # 测试标签，运行测试
 test/%: rvcc test/%.c
 	riscv64-unknown-elf-gcc -o- -E -P -C test/$*.c | ./rvcc -o test/$*.s -
-	riscv64-unknown-elf-gcc -static -o $@ test/$*.s -xc test/common
+	riscv64-unknown-elf-gcc -g -static -o $@ test/$*.s -xc test/common
 
 test: $(TESTS)
 	for i in $^; do echo $$i; qemu-riscv64 -L $RISCV/sysroot ./$$i || exit 1; echo; done

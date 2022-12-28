@@ -78,6 +78,11 @@ static void genAddr(Node *Nd) {
         case ND_DEREF:
             genExpr(Nd->LHS);
             return;
+        // 逗号
+        case ND_COMMA:
+            genExpr(Nd->LHS);
+            genAddr(Nd->RHS);
+            return;
         default:
             break;
     }

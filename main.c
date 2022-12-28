@@ -75,7 +75,7 @@ int main(int Argc, char **Argv) {
     // 生成代码
     FILE *Out = openFile(OptO);
     // .file 文件编号 文件名
-    fprintf(Out, ".file 1 \"%s\"\n", InputPath);
+    fprintf(Out, ".file 1 \"%s\"\n", OptO);
     codegen(Prog, Out);
     return 0;
 }
