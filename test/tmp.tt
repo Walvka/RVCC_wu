@@ -1,6 +1,8 @@
 int main(){
-    struct {int a; int b;} x; 
-    x.a=  1; 
-    x.b = 2; 
-    return x.a;
+    struct t {int x; int k;}; 
+    int t = 1; 
+    struct t y; 
+    y.x=2; 
+    y.k=2; 
+    return (t + y.x);
 }
