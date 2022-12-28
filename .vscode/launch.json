@@ -5,7 +5,7 @@
       "name": "C/C++ Runner: Debug Session",
       "type": "cppdbg",
       "request": "launch",
-      "args": ["-o", "./out", "./in.ct"],
+      "args": ["-o", "./out.s", "./test/tmp.tt"],
       "stopAtEntry": false,
       "externalConsole": false,
       "cwd": "/home/wu/RVCC_wu",
