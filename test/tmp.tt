@@ -1,8 +1,6 @@
 int main(){
-    struct t {int x; int k;}; 
-    int t = 1; 
-    struct t y; 
-    y.x=2; 
-    y.k=2; 
-    return (t + y.x);
+    struct t {char a;} x; 
+    struct t *y = &x; 
+    y->a=3; 
+    return x.a;
 }
