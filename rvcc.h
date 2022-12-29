@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,7 +45,7 @@ typedef struct Token Token;
 struct Token{
     TokenKind Kind; // 种类
     Token *Next;    // 指向下一终结符
-    int Val;        // 值
+    int64_t Val;    // TK_NUM值
     char *Loc;      // 在解析的字符串内的位置
     int Len;        // 长度
     Type *Ty;       // TK_STR使用
@@ -125,20 +126,20 @@ typedef enum {
 
 // AST中二叉树节点
 struct Node {
-    NodeKind Kind; // 节点种类
-    Node *Next;    // 下一节点，指代下一语句
-    Token *Tok;    // 节点对应的终结符
-    Type *Ty;      // 节点中数据的类型
+    NodeKind Kind;  // 节点种类
+    Node *Next;     // 下一节点，指代下一语句
+    Token *Tok;     // 节点对应的终结符
+    Type *Ty;       // 节点中数据的类型
 
-    Node *LHS;     // 左部，left-hand side
-    Node *RHS;     // 右部，right-hand side
+    Node *LHS;      // 左部，left-hand side
+    Node *RHS;      // 右部，right-hand side
 
     // "if"语句 或者 "for"语句
-    Node *Cond; // 条件内的表达式
-    Node *Then; // 符合条件后的语句
-    Node *Els;  // 不符合条件后的语句
-    Node *Init; // 初始化语句
-    Node *Inc;  // 递增语句
+    Node *Cond;     // 条件内的表达式
+    Node *Then;     // 符合条件后的语句
+    Node *Els;      // 不符合条件后的语句
+    Node *Init;     // 初始化语句
+    Node *Inc;      // 递增语句
 
     // 代码块 或 语句表达式
     Node *Body;
@@ -150,8 +151,8 @@ struct Node {
     char *FuncName; // 函数名
     Node *Args;     // 函数参数
 
-    Obj *Var;      // 存储ND_VAR种类的变量
-    int Val;       // 存储ND_NUM种类的值
+    Obj *Var;       // 存储ND_VAR种类的变量
+    int64_t Val;    // 存储ND_NUM种类的值
 };
 
 
@@ -167,6 +168,7 @@ Obj *parse(Token *Tok);
 typedef enum {
     TY_CHAR,        // char字符类型
     TY_INT,         // int整型
+    TY_LONG,        // long长整型
     TY_PTR,         // 指针
     TY_FUNC,        // 函数
     TY_ARRAY,       // 数组
@@ -194,15 +196,16 @@ struct Type {
 
 // 结构体成员
 struct Member {
-    Member *Next; // 下一成员
-    Type *Ty;     // 类型
-    Token *Name;  // 名称
-    int Offset;   // 偏移量
+    Member *Next;   // 下一成员
+    Type *Ty;       // 类型
+    Token *Name;    // 名称
+    int Offset;     // 偏移量
 };
 
 // 声明一个全局变量，定义在type.c中。
 extern Type *TyChar;
 extern Type *TyInt;
+extern Type *TyLong;
 
 // 判断是否为整型
 bool isInteger(Type *TY);
