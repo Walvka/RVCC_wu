@@ -1,6 +1,3 @@
-int print();
-
 int main(){
-    char *(x[3])[4]; 
-    sizeof(x);
+    void *x;
 }

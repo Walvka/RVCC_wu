@@ -86,7 +86,7 @@ struct Obj {
     // 函数 或 全局变量
     bool IsFunction;
     bool IsDefinition; // 是否为函数定义
-    
+
     // 全局变量
     char *InitData;
 
@@ -167,6 +167,7 @@ Obj *parse(Token *Tok);
 
 // 类型种类
 typedef enum {
+    TY_VOID,        // void类型
     TY_CHAR,        // char字符类型
     TY_SHORT,       // short短整型
     TY_INT,         // int整型
@@ -205,6 +206,7 @@ struct Member {
 };
 
 // 声明一个全局变量，定义在type.c中。
+extern Type *TyVoid;
 extern Type *TyChar;
 extern Type *TyShort;
 extern Type *TyInt;

@@ -74,6 +74,9 @@ int main() {
     ASSERT(4, ({ char x[3]; char (*y)[3]=x; y[0][0]=4; y[0][0]; }));
     ASSERT(96, ({ char *(x[3])[4]; sizeof(x); }));
 
+    // [61] 支持void类型
+    { void *x; }
+
     printf("OK\n");
     return 0;
 }
