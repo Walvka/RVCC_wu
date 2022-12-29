@@ -477,7 +477,7 @@ void emitText(Obj *Prog) {
 
     // 为每个函数单独生成代码
     for (Obj *Fn = Prog; Fn; Fn = Fn->Next) {
-        if (!Fn->IsFunction){
+        if (!Fn->IsFunction || !Fn->IsDefinition){
             continue;
         }
 
