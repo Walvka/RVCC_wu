@@ -2,7 +2,8 @@
   "files.associations": {
     "ctype.h": "c",
     "stdarg.h": "c",
-    "rvcc.h": "c"
+    "rvcc.h": "c",
+    "test.h": "c"
   },
   "C_Cpp_Runner.cCompilerPath": "gcc",
   "C_Cpp_Runner.cppCompilerPath": "g++",
