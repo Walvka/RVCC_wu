@@ -1,6 +1,4 @@
 int main(){
-    struct t {char a;} x; 
-    struct t *y = &x; 
-    y->a=3; 
-    return x.a;
+    char *(x[3])[4]; 
+    sizeof(x);
 }
