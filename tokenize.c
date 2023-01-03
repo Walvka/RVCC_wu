@@ -159,7 +159,7 @@ static int readPunct(char *Ptr){
     static char *Kw[] = {
         "==", "!=", "<=", ">=", 
         "->", "+=", "-=", "*=", "/=",
-        "++", "--",
+        "++", "--", "%=",
     };
     // 遍历列表匹配Ptr字符串
     for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I) {
