@@ -76,25 +76,26 @@ Token *tokenizeFile(char *Path);
 // 变量 或 函数
 typedef struct Obj Obj;
 struct Obj {
-    Obj *Next;  // 指向下一对象
-    char *Name; // 变量名
-    Type *Ty;   // 变量类型
-    bool IsLocal; // 是 局部或全局 变量
+    Obj *Next;          // 指向下一对象
+    char *Name;         // 变量名
+    Type *Ty;           // 变量类型
+    bool IsLocal;       // 是 局部或全局 变量
 
     // 局部变量
-    int Offset; // fp的偏移量
+    int Offset;         // fp的偏移量
     // 函数 或 全局变量
     bool IsFunction;
-    bool IsDefinition; // 是否为函数定义
+    bool IsDefinition;  // 是否为函数定义
+    bool IsStatic;      // 是否为文件域内的
 
     // 全局变量
     char *InitData;
 
     // 函数
-    Obj *Params;   // 形参
-    Node *Body;    // 函数体
-    Obj *Locals;   // 本地变量
-    int StackSize; // 栈大小
+    Obj *Params;        // 形参
+    Node *Body;         // 函数体
+    Obj *Locals;        // 本地变量
+    int StackSize;      // 栈大小
 };
 
 

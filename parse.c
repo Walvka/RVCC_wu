@@ -33,6 +33,7 @@ struct Scope {
 // 变量属性
 typedef struct {
     bool IsTypedef; // 是否为类型别名
+    bool IsStatic;  // 是否为文件域内
 } VarAttr;
 
 // 在解析时，全部的变量实例都被累加到这个列表里。
@@ -48,7 +49,7 @@ static Obj *CurrentFn;
 // program = (typedef | functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator "(" ")" "{" compoundStmt*
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
-//             | "typedef"
+//             | "typedef" | "static"
 //             | structDecl | unionDecl | typedefName
 //             | enumSpecifier)+
 // enumSpecifier = ident? "{" enumList? "}"
@@ -308,7 +309,7 @@ static void pushTagScope(Token *Tok, Type *Ty){
 }
 
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
-//             | "typedef"
+//             | "typedef" | "static"
 //             | structDecl | unionDecl | typedefName
 //             | enumSpecifier)+
 // declarator specifier
@@ -330,17 +331,24 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr){
 
     // 遍历所有类型名的Tok
     while (isTypename(Tok)){
-
         // 处理typedef关键字
-        if (equal(Tok, "typedef")){
+        if (equal(Tok, "typedef") || equal(Tok, "static")) {
             if (!Attr){
                 errorTok(Tok, "storage class specifier is not allowed in this context");
             }
-            Attr->IsTypedef = true;
+            if (equal(Tok, "typedef")){
+                Attr->IsTypedef = true;
+            }
+            else{
+                Attr->IsStatic = true;
+            }
+            // typedef不应与static一起使用
+            if (Attr->IsTypedef && Attr->IsStatic){
+                errorTok(Tok, "typedef and static may not be used together");
+            }
             Tok = Tok->Next;
             continue;
         }
-
         // 处理用户定义的类型
         Type *Ty2 = findTypedef(Tok);
         if (equal(Tok, "struct") || equal(Tok, "union") || 
@@ -640,8 +648,9 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy){
 // 判断是否为类型名
 static bool isTypename(Token *Tok){
     static char *Kw[] = {
-        "void", "_Bool",  "char",  "short",   "int",
-        "long", "struct", "union", "typedef", "enum",
+        "void",  "_Bool",  "char",  "short",   "int",
+        "long",  "struct", "union", "typedef", "enum",
+        "static",
     };
 
     for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I){
@@ -1383,12 +1392,13 @@ static void createParamLVars(Type *Param){
 }
 
 // functionDefinition = declspec declarator "(" ")" "{" compoundStmt*
-static Token *function(Token *Tok, Type *BaseTy){
+static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr){
     Type *Ty = declarator(&Tok, Tok, BaseTy);
 
     Obj *Fn = newGVar(getIdent(Ty->Name), Ty);
     Fn->IsFunction = true;
     Fn->IsDefinition = !consume(&Tok, Tok, ";");
+    Fn->IsStatic = Attr->IsStatic;
 
     // 判断是否没有函数定义
     if (!Fn->IsDefinition){
@@ -1462,7 +1472,7 @@ Obj * parse(Token *Tok){
 
         // 函数
         if (isFunction(Tok)){
-            Tok = function(Tok, BaseTy);
+            Tok = function(Tok, BaseTy, &Attr);
             continue;
         }
 

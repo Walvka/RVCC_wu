@@ -173,7 +173,7 @@ static bool isKeyword(Token *Tok) {
     static char *Kw[] = {"return", "if",      "else",  "for",     "while",
                          "int",    "sizeof",  "char",  "struct",  "union",
                          "long",   "short",   "void",  "typedef", "_Bool",
-                         "enum"
+                         "enum",   "static",
                         };
 
     // 遍历关键字列表匹配
