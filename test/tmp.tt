@@ -1,4 +1,5 @@
 int main(){
-    char *x[3]; 
-    return sizeof(x);
+    enum t { zero=100, one, two }; 
+    enum t y; 
+    sizeof(y);
 }
