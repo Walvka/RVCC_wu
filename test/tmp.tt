@@ -1,5 +1,7 @@
 int main(){
-    enum t { zero=100, one, two }; 
-    enum t y; 
-    sizeof(y);
+  int i=2; 
+  i+=5;
+  i-=2;
+  i*=2;
+  i/=2;
 }
