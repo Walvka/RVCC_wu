@@ -3,7 +3,9 @@
     "ctype.h": "c",
     "stdarg.h": "c",
     "rvcc.h": "c",
-    "test.h": "c"
+    "test.h": "c",
+    "string.h": "c",
+    "strings.h": "c"
   },
   "C_Cpp_Runner.cCompilerPath": "gcc",
   "C_Cpp_Runner.cppCompilerPath": "g++",
