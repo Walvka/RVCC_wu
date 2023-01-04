@@ -1,5 +1,21 @@
 int main(){
-  struct T *foo; 
-  struct T {int x;}; 
-  sizeof(struct T);
+  int i=0; 
+  goto i; 
+  g: {
+    i++; 
+    goto k; 
+  }
+    
+  h: {
+    i++;
+    goto g; 
+  }
+     
+  i: {
+    i++;
+    goto h; 
+  }
+     
+  k:
+  return i; 
 }
