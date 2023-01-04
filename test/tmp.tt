@@ -1,21 +1,12 @@
 int main(){
   int i=0; 
-  goto i; 
-  g: {
-    i++; 
-    goto k; 
+  for(;i<10;i++){ 
+    for (;;){
+      break; 
+      if (i == 3){
+        break;
+      }
+    } 
+    i;
   }
-    
-  h: {
-    i++;
-    goto g; 
-  }
-     
-  i: {
-    i++;
-    goto h; 
-  }
-     
-  k:
-  return i; 
 }

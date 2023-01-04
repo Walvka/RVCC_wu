@@ -50,6 +50,9 @@ static Obj *CurrentFn;
 static Node *Gotos;
 static Node *Labels;
 
+// 当前goto跳转的目标
+static char *BrkLabel;
+
 // program = (typedef | functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator "(" ")" "{" compoundStmt*
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
@@ -74,6 +77,7 @@ static Node *Labels;
 //        | "for" "(" exprStmt expr? ";" expr? ")" stmt
 //        | "while" "(" expr ")" stmt
 //        | "goto" ident ";"
+//        | "break" ";"
 //        | ident ":" stmt
 //        | "{" compoundStmt
 //        | exprStmt
@@ -716,6 +720,7 @@ static bool isTypename(Token *Tok){
 //        | "for" "(" exprStmt expr? ";" expr? ")" stmt
 //        | "while" "(" expr ")" stmt
 //        | "goto" ident ";"
+//        | "break" ";"
 //        | ident ":" stmt
 //        | "{" compoundStmt
 //        | exprStmt
@@ -758,6 +763,11 @@ static Node *stmt(Token **Rest, Token *Tok){
         // 进入for循环域
         enterScope();
 
+        // 存储此前break标签的名称
+        char *Brk = BrkLabel;
+        // 设置break标签的名称
+        BrkLabel = Nd->BrkLabel = newUniqueName();
+
         // exprStmt
         if (isTypename(Tok)){
             // 初始化循环变量
@@ -787,6 +797,8 @@ static Node *stmt(Token **Rest, Token *Tok){
         Nd->Then = stmt(Rest, Tok);
         // 退出for循环域
         leaveScope();
+        // 恢复此前的break标签
+        BrkLabel = Brk;
         return Nd;
     }
 
@@ -799,8 +811,14 @@ static Node *stmt(Token **Rest, Token *Tok){
         Nd->Cond = expr(&Tok, Tok);
         // ")"
         Tok = skip(Tok, ")");
+        // 存储此前break标签的名称
+        char *Brk = BrkLabel;
+        // 设置break标签的名称
+        BrkLabel = Nd->BrkLabel = newUniqueName();
         // stmt
         Nd->Then = stmt(Rest, Tok);
+        // 恢复此前的break标签
+        BrkLabel = Brk;
         return Nd;
     }
 
@@ -812,6 +830,18 @@ static Node *stmt(Token **Rest, Token *Tok){
         Nd->GotoNext = Gotos;
         Gotos = Nd;
         *Rest = skip(Tok->Next->Next, ";");
+        return Nd;
+    }
+
+    // "break" ";"
+    if (equal(Tok, "break")) {
+        if (!BrkLabel){
+            errorTok(Tok, "stray break");
+        }
+        // 跳转到break标签的位置
+        Node *Nd = newNode(ND_GOTO, Tok);
+        Nd->UniqueLabel = BrkLabel;
+        *Rest = skip(Tok->Next, ";");
         return Nd;
     }
 
