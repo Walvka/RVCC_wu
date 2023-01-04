@@ -156,6 +156,8 @@ void addType(Node *Nd) {
             Nd->Ty = TyLong;
             return;
         // 将节点类型设为 int
+        case ND_LOGOR:
+        case ND_LOGAND:
         case ND_NOT:
             Nd->Ty = TyInt;
             return;
