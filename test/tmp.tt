@@ -1,3 +1,5 @@
 int main(){
-  sizeof(int(*)[10]);
+  struct T *foo; 
+  struct T {int x;}; 
+  sizeof(struct T);
 }
