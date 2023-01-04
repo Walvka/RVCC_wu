@@ -57,6 +57,8 @@ static Obj *CurrentFn;
 // enumList = ident ("=" num)? ("," ident ("=" num)?)*
 // declarator = "*"* ("(" ident ")" | "(" declarator ")" | ident) typeSuffix
 // typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
+// typeSuffix = "(" funcParams | "[" arrayDimensions | ε
+// arrayDimensions = num? "]" typeSuffix
 // funcParams = (param ("," param)*)? ")"
 // param = declspec declarator
 
@@ -106,6 +108,7 @@ static bool isTypename(Token *Tok);
 static Node *program(Token **Rest, Token *Tok );
 static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr);
 static Type *enumSpecifier(Token **Rest, Token *Tok);
+static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty);
 static Type *declarator(Token **Rest, Token *Tok, Type *Ty);
 static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy);
 static Node *compoundStmt(Token **Rest, Token *Tok);
@@ -475,17 +478,30 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty){
     return Ty;
 }
 
-// typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
+// 数组维数
+// arrayDimensions = num? "]" typeSuffix
+static Type *arrayDimensions(Token **Rest, Token *Tok, Type *Ty){
+    // "]" 无数组维数的 "[]"
+    if (equal(Tok, "]")){
+        Ty = typeSuffix(Rest, Tok->Next, Ty);
+        return arrayOf(Ty, -1);
+    }
+    // 有数组维数的情况
+    int Sz = getNumber(Tok);
+    Tok = skip(Tok->Next, "]");
+    Ty = typeSuffix(Rest, Tok, Ty);
+    return arrayOf(Ty, Sz);
+}
+
+// typeSuffix = "(" funcParams | "[" arrayDimensions | ε
 static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty){
+    // "(" funcParams
     if (equal(Tok, "(")){
         return funcParams(Rest, Tok->Next, Ty);
     }
-    
+    // "[" arrayDimensions
     if (equal(Tok, "[")){
-        int Sz = getNumber(Tok->Next);
-        Tok = skip(Tok->Next->Next, "]");
-        Ty = typeSuffix(Rest, Tok, Ty);
-        return arrayOf(Ty, Sz);
+        return arrayDimensions(Rest, Tok->Next, Ty);
     }
 
     *Rest = Tok;
@@ -633,6 +649,9 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy){
         // declarator
         // 声明获取到变量类型，包括变量名
         Type *Ty = declarator(&Tok, Tok, BaseTy);
+        if (Ty->Size < 0){
+            errorTok(Tok, "variable has incomplete type");
+        }
         if (Ty->Kind == TY_VOID){
             errorTok(Tok, "variable declared void");
         }
