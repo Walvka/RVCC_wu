@@ -76,7 +76,7 @@ Token *tokenizeFile(char *Path);
 
 // 变量 或 函数
 typedef struct Obj Obj;
-struct Obj {
+struct Obj{
     Obj *Next;          // 指向下一对象
     char *Name;         // 变量名
     Type *Ty;           // 变量类型
@@ -101,7 +101,7 @@ struct Obj {
 
 
 // AST的节点种类
-typedef enum {
+typedef enum{
     ND_ADD,         // +
     ND_SUB,         // -
     ND_MUL,         // *
@@ -127,7 +127,9 @@ typedef enum {
     ND_RETURN,      // 返回
     ND_IF,          // "if"，条件判断
     ND_FOR,         // "for" 或 "while"，循环
-    ND_BLOCK,       // { ... }，代码块
+    ND_SWITCH,      // "switch"，分支语句
+    ND_CASE,        // "case"
+    ND_BLOCK,       //{ ... }，代码块
     ND_GOTO,        // goto，直接跳转语句
     ND_LABEL,       // 标签语句
     ND_FUNCALL,     // 函数调用
@@ -139,7 +141,7 @@ typedef enum {
 } NodeKind;
 
 // AST中二叉树节点
-struct Node {
+struct Node{
     NodeKind Kind;  // 节点种类
     Node *Next;     // 下一节点，指代下一语句
     Token *Tok;     // 节点对应的终结符
@@ -159,7 +161,7 @@ struct Node {
     char *BrkLabel;
     // "continue" 标签
     char *ContLabel;
-    
+
     // 代码块 或 语句表达式
     Node *Body;
 
@@ -175,6 +177,10 @@ struct Node {
     char *Label;
     char *UniqueLabel;
     Node *GotoNext;
+
+    // switch和case
+    Node *CaseNext;
+    Node *DefaultCase;
 
     Obj *Var;       // 存储ND_VAR种类的变量
     int64_t Val;    // 存储ND_NUM种类的值
@@ -192,7 +198,7 @@ Obj *parse(Token *Tok);
 //
 
 // 类型种类
-typedef enum {
+typedef enum{
     TY_VOID,        // void类型
     TY_BOOL,        // _Bool布尔类型
     TY_CHAR,        // char字符类型
@@ -207,7 +213,7 @@ typedef enum {
     TY_UNION,       // 联合体
 } TypeKind;
 
-struct Type {
+struct Type{
     TypeKind Kind;  // 种类
     int Size;       // 大小, sizeof返回的值
     int Align;      // 对齐
@@ -226,7 +232,7 @@ struct Type {
 };
 
 // 结构体成员
-struct Member {
+struct Member{
     Member *Next;   // 下一成员
     Type *Ty;       // 类型
     Token *Tok;     // 用于报错信息
