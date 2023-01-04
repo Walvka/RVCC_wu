@@ -52,6 +52,8 @@ static Node *Labels;
 
 // 当前goto跳转的目标
 static char *BrkLabel;
+// 当前continue跳转的目标
+static char *ContLabel;
 
 // program = (typedef | functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator "(" ")" "{" compoundStmt*
@@ -78,6 +80,7 @@ static char *BrkLabel;
 //        | "while" "(" expr ")" stmt
 //        | "goto" ident ";"
 //        | "break" ";"
+//        | "continue" ";"
 //        | ident ":" stmt
 //        | "{" compoundStmt
 //        | exprStmt
@@ -163,7 +166,7 @@ static void leaveScope(void){
 static Type *findTag(Token *Tok){
     for (Scope *S = Scp; S; S = S->Next){
         for (TagScope *S2 = S->Tags; S2; S2 = S2->Next){
-            if (equal(Tok, S2->Name)){
+            if(equal(Tok, S2->Name)){
                 return S2->Ty;
             }
         }
@@ -177,7 +180,7 @@ static VarScope *findVar(Token *Tok){
     for (Scope *S = Scp; S; S = S->Next){
         // 遍历域内的所有变量
         for (VarScope *S2 = S->Vars; S2; S2 = S2->Next){
-            if (equal(Tok, S2->Name)){
+            if(equal(Tok, S2->Name)){
                 return S2;
             }
         }
@@ -300,7 +303,7 @@ static Obj *newStringLiteral(char *Str, Type *Ty){
 
 // 获取标识符
 static char *getIdent(Token *Tok){
-    if (Tok->Kind != TK_IDENT){
+    if(Tok->Kind != TK_IDENT){
         errorTok(Tok, "expected an identifier");
     }
     return strndup(Tok->Loc, Tok->Len);
@@ -309,10 +312,10 @@ static char *getIdent(Token *Tok){
 // 查找类型别名
 static Type *findTypedef(Token *Tok){
     // 类型别名是个标识符
-    if (Tok->Kind == TK_IDENT){
+    if(Tok->Kind == TK_IDENT){
         // 查找是否存在于变量域内
         VarScope *S = findVar(Tok);
-        if (S){
+        if(S){
             return S->Typedef;
         }
     }
@@ -321,7 +324,7 @@ static Type *findTypedef(Token *Tok){
 
 // 获取数字
 static long getNumber(Token *Tok){
-    if (Tok->Kind != TK_NUM){
+    if(Tok->Kind != TK_NUM){
         errorTok(Tok, "expected a number");
     }
     return Tok->Val;
@@ -360,18 +363,18 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr){
     // 遍历所有类型名的Tok
     while (isTypename(Tok)){
         // 处理typedef关键字
-        if (equal(Tok, "typedef") || equal(Tok, "static")) {
-            if (!Attr){
+        if(equal(Tok, "typedef") || equal(Tok, "static")){
+            if(!Attr){
                 errorTok(Tok, "storage class specifier is not allowed in this context");
             }
-            if (equal(Tok, "typedef")){
+            if(equal(Tok, "typedef")){
                 Attr->IsTypedef = true;
             }
             else{
                 Attr->IsStatic = true;
             }
             // typedef不应与static一起使用
-            if (Attr->IsTypedef && Attr->IsStatic){
+            if(Attr->IsTypedef && Attr->IsStatic){
                 errorTok(Tok, "typedef and static may not be used together");
             }
             Tok = Tok->Next;
@@ -379,18 +382,18 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr){
         }
         // 处理用户定义的类型
         Type *Ty2 = findTypedef(Tok);
-        if (equal(Tok, "struct") || equal(Tok, "union") || 
+        if(equal(Tok, "struct") || equal(Tok, "union") || 
             equal(Tok, "enum") || Ty2){
-            if (Counter){
+            if(Counter){
                 break;
             }
-            if (equal(Tok, "struct")){
+            if(equal(Tok, "struct")){
                 Ty = structDecl(&Tok, Tok->Next);
             } 
-            else if (equal(Tok, "union")){
+            else if(equal(Tok, "union")){
                 Ty = unionDecl(&Tok, Tok->Next);
             } 
-            else if (equal(Tok, "enum")){
+            else if(equal(Tok, "enum")){
                 Ty = enumSpecifier(&Tok, Tok->Next);
             } 
             else {
@@ -404,22 +407,22 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr){
 
         // 对于出现的类型名加入Counter
         // 每一步的Counter都需要有合法值
-        if (equal(Tok, "void")){
+        if(equal(Tok, "void")){
             Counter += VOID;
         }
-        else if (equal(Tok, "_Bool")){
+        else if(equal(Tok, "_Bool")){
             Counter += BOOL;
         }
-        else if (equal(Tok, "char")){
+        else if(equal(Tok, "char")){
             Counter += CHAR;
         }
-        else if (equal(Tok, "short")){
+        else if(equal(Tok, "short")){
             Counter += SHORT;
         }
-        else if (equal(Tok, "int")){
+        else if(equal(Tok, "int")){
             Counter += INT;
         }
-        else if (equal(Tok, "long")){
+        else if(equal(Tok, "long")){
             Counter += LONG;
         }
         else{
@@ -470,14 +473,14 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty){
     while (!equal(Tok, ")")){
         // funcParams = param ("," param)*
         // param = declspec declarator
-        if (Cur != &Head){
+        if(Cur != &Head){
             Tok = skip(Tok, ",");
         }
         Type *Ty2 = declspec(&Tok, Tok, NULL);
         Ty2 = declarator(&Tok, Tok, Ty2);
 
         // T类型的数组被转换为T*
-        if (Ty2->Kind == TY_ARRAY){
+        if(Ty2->Kind == TY_ARRAY){
             Token *Name = Ty2->Name;
             Ty2 = pointerTo(Ty2->Base);
             Ty2->Name = Name;
@@ -500,7 +503,7 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty){
 // arrayDimensions = num? "]" typeSuffix
 static Type *arrayDimensions(Token **Rest, Token *Tok, Type *Ty){
     // "]" 无数组维数的 "[]"
-    if (equal(Tok, "]")){
+    if(equal(Tok, "]")){
         Ty = typeSuffix(Rest, Tok->Next, Ty);
         return arrayOf(Ty, -1);
     }
@@ -514,11 +517,11 @@ static Type *arrayDimensions(Token **Rest, Token *Tok, Type *Ty){
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
 static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty){
     // "(" funcParams
-    if (equal(Tok, "(")){
+    if(equal(Tok, "(")){
         return funcParams(Rest, Tok->Next, Ty);
     }
     // "[" arrayDimensions
-    if (equal(Tok, "[")){
+    if(equal(Tok, "[")){
         return arrayDimensions(Rest, Tok->Next, Ty);
     }
 
@@ -535,7 +538,7 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty){
     }
     
     // "(" declarator ")"
-    if (equal(Tok, "(")){
+    if(equal(Tok, "(")){
         // 记录"("的位置
         Token *Start = Tok;
         Type Dummy = {};
@@ -548,7 +551,7 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty){
         return declarator(&Tok, Start->Next, Ty);
     }
 
-    if (Tok->Kind != TK_IDENT){
+    if(Tok->Kind != TK_IDENT){
         errorTok(Tok, "expected a variable name");
     }
 
@@ -569,7 +572,7 @@ static Type *abstractDeclarator(Token **Rest, Token *Tok, Type *Ty){
     }
 
     // ("(" abstractDeclarator ")")?
-    if (equal(Tok, "(")){
+    if(equal(Tok, "(")){
         Token *Start = Tok;
         Type Dummy = {};
         // 使Tok前进到")"后面的位置
@@ -603,17 +606,17 @@ static Type *enumSpecifier(Token **Rest, Token *Tok){
     // 读取标签
     // ident?
     Token *Tag = NULL;
-    if (Tok->Kind == TK_IDENT){
+    if(Tok->Kind == TK_IDENT){
         Tag = Tok;
         Tok = Tok->Next;
     }
     // 处理没有{}的情况
-    if (Tag && !equal(Tok, "{")){
+    if(Tag && !equal(Tok, "{")){
         Type *Ty = findTag(Tag);
-        if (!Ty){
+        if(!Ty){
             errorTok(Tag, "unknown enum type");
         }
-        if (Ty->Kind != TY_ENUM){
+        if(Ty->Kind != TY_ENUM){
             errorTok(Tag, "not an enum tag");
         }
         *Rest = Tok;
@@ -627,13 +630,13 @@ static Type *enumSpecifier(Token **Rest, Token *Tok){
     int I = 0;   // 第几个枚举常量
     int Val = 0; // 枚举常量的值
     while (!equal(Tok, "}")){
-        if (I++ > 0){
+        if(I++ > 0){
             Tok = skip(Tok, ",");
         }
         char *Name = getIdent(Tok);
         Tok = Tok->Next;
         // 判断是否存在赋值
-        if (equal(Tok, "=")){
+        if(equal(Tok, "=")){
             Val = getNumber(Tok->Next);
             Tok = Tok->Next->Next;
         }
@@ -643,7 +646,7 @@ static Type *enumSpecifier(Token **Rest, Token *Tok){
         S->EnumVal = Val++;
     }
     *Rest = Tok->Next;
-    if (Tag){
+    if(Tag){
         pushTagScope(Tag, Ty);
     }
     return Ty;
@@ -660,23 +663,23 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy){
     // (declarator ("=" expr)? ("," declarator ("=" expr)?)*)?
     while (!equal(Tok, ";")){
         // 第1个变量不必匹配 ","
-        if (I++ > 0){
+        if(I++ > 0){
             Tok = skip(Tok, ",");
         }
 
         // declarator
         // 声明获取到变量类型，包括变量名
         Type *Ty = declarator(&Tok, Tok, BaseTy);
-        if (Ty->Size < 0){
+        if(Ty->Size < 0){
             errorTok(Tok, "variable has incomplete type");
         }
-        if (Ty->Kind == TY_VOID){
+        if(Ty->Kind == TY_VOID){
             errorTok(Tok, "variable declared void");
         }
         Obj *Var = newLVar(getIdent(Ty->Name), Ty);
 
         // 如果不存在"="则为变量声明，不需要生成节点，已经存储在Locals中了
-        if (!equal(Tok, "=")){
+        if(!equal(Tok, "=")){
             continue;
         }
 
@@ -706,7 +709,7 @@ static bool isTypename(Token *Tok){
     };
 
     for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I){
-        if (equal(Tok, Kw[I])){
+        if(equal(Tok, Kw[I])){
             return true;
         }
     }
@@ -726,7 +729,7 @@ static bool isTypename(Token *Tok){
 //        | exprStmt
 static Node *stmt(Token **Rest, Token *Tok){
     // "return" expr ";"
-    if (equal(Tok, "return")){
+    if(equal(Tok, "return")){
         Node *Nd = newNode(ND_RETURN, Tok);
         Node *Exp = expr(&Tok, Tok->Next);
         *Rest = skip(Tok, ";");
@@ -738,7 +741,7 @@ static Node *stmt(Token **Rest, Token *Tok){
 
     // 解析if语句
     // "if" "(" expr ")" stmt ("else" stmt)?
-    if (equal(Tok, "if")){
+    if(equal(Tok, "if")){
         Node *Nd = newNode(ND_IF, Tok);
         // "(" expr ")"，条件内语句
         Tok = skip(Tok->Next, "(");
@@ -747,7 +750,7 @@ static Node *stmt(Token **Rest, Token *Tok){
         // stmt，符合条件后的语句
         Nd->Then = stmt(&Tok, Tok);
         // ("else" stmt)?，不符合条件后的语句
-        if (equal(Tok, "else")){
+        if(equal(Tok, "else")){
             Nd->Els = stmt(&Tok, Tok->Next);
         }
         *Rest = Tok;
@@ -755,7 +758,7 @@ static Node *stmt(Token **Rest, Token *Tok){
     }
 
     // "for" "(" exprStmt expr? ";" expr? ")" stmt
-    if (equal(Tok, "for")){
+    if(equal(Tok, "for")){
         Node *Nd = newNode(ND_FOR, Tok);
         // "("
         Tok = skip(Tok->Next, "(");
@@ -763,13 +766,15 @@ static Node *stmt(Token **Rest, Token *Tok){
         // 进入for循环域
         enterScope();
 
-        // 存储此前break标签的名称
+        // 存储此前break和continue标签的名称
         char *Brk = BrkLabel;
-        // 设置break标签的名称
+        char *Cont = ContLabel;
+        // 设置break和continue标签的名称
         BrkLabel = Nd->BrkLabel = newUniqueName();
+        ContLabel = Nd->ContLabel = newUniqueName();
 
         // exprStmt
-        if (isTypename(Tok)){
+        if(isTypename(Tok)){
             // 初始化循环变量
             Type *BaseTy = declspec(&Tok, Tok, NULL);
             Nd->Init = declaration(&Tok, Tok, BaseTy);
@@ -780,14 +785,14 @@ static Node *stmt(Token **Rest, Token *Tok){
         }
 
         // expr?
-        if (!equal(Tok, ";")){
+        if(!equal(Tok, ";")){
             Nd->Cond = expr(&Tok, Tok);
         }
         // ";"
         Tok = skip(Tok, ";");
 
         // expr?
-        if (!equal(Tok, ")")){
+        if(!equal(Tok, ")")){
             Nd->Inc = expr(&Tok, Tok);
         }
         // ")"
@@ -797,13 +802,14 @@ static Node *stmt(Token **Rest, Token *Tok){
         Nd->Then = stmt(Rest, Tok);
         // 退出for循环域
         leaveScope();
-        // 恢复此前的break标签
+        // 恢复此前的break和continue标签
         BrkLabel = Brk;
+        ContLabel = Cont;
         return Nd;
     }
 
     // "while" "(" expr ")" stmt
-    if (equal(Tok, "while")){
+    if(equal(Tok, "while")){
         Node *Nd = newNode(ND_FOR, Tok);
         // "("
         Tok = skip(Tok->Next, "(");
@@ -811,19 +817,22 @@ static Node *stmt(Token **Rest, Token *Tok){
         Nd->Cond = expr(&Tok, Tok);
         // ")"
         Tok = skip(Tok, ")");
-        // 存储此前break标签的名称
+        // 存储此前break和continue标签的名称
         char *Brk = BrkLabel;
-        // 设置break标签的名称
+        char *Cont = ContLabel;
+        // 设置break和continue标签的名称
         BrkLabel = Nd->BrkLabel = newUniqueName();
+        ContLabel = Nd->ContLabel = newUniqueName();
         // stmt
         Nd->Then = stmt(Rest, Tok);
-        // 恢复此前的break标签
+        // 恢复此前的break和continue标签
         BrkLabel = Brk;
+        ContLabel = Cont;
         return Nd;
     }
 
     // "goto" ident ";"
-    if (equal(Tok, "goto")){
+    if(equal(Tok, "goto")){
         Node *Nd = newNode(ND_GOTO, Tok);
         Nd->Label = getIdent(Tok->Next);
         // 将Nd同时存入Gotos，最后用于解析UniqueLabel
@@ -834,8 +843,8 @@ static Node *stmt(Token **Rest, Token *Tok){
     }
 
     // "break" ";"
-    if (equal(Tok, "break")) {
-        if (!BrkLabel){
+    if(equal(Tok, "break")){
+        if(!BrkLabel){
             errorTok(Tok, "stray break");
         }
         // 跳转到break标签的位置
@@ -845,8 +854,20 @@ static Node *stmt(Token **Rest, Token *Tok){
         return Nd;
     }
 
+    // "continue" ";"
+    if(equal(Tok, "continue")){
+        if(!ContLabel){
+            errorTok(Tok, "stray continue");
+        }
+        // 跳转到continue标签的位置
+        Node *Nd = newNode(ND_GOTO, Tok);
+        Nd->UniqueLabel = ContLabel;
+        *Rest = skip(Tok->Next, ";");
+        return Nd;
+    }
+
     // ident ":" stmt
-    if (Tok->Kind == TK_IDENT && equal(Tok->Next, ":")){
+    if(Tok->Kind == TK_IDENT && equal(Tok->Next, ":")){
         Node *Nd = newNode(ND_LABEL, Tok);
         Nd->Label = strndup(Tok->Loc, Tok->Len);
         Nd->UniqueLabel = newUniqueName();
@@ -858,7 +879,7 @@ static Node *stmt(Token **Rest, Token *Tok){
     }
 
     // "{" compoundStmt
-    if (equal(Tok, "{")){
+    if(equal(Tok, "{")){
         return compoundStmt(Rest, Tok->Next);
     }
 
@@ -881,12 +902,12 @@ static Node *compoundStmt(Token **Rest, Token *Tok){
     // (declaration | stmt)* "}"
     while (!equal(Tok, "}")){
         // declaration
-        if (isTypename(Tok) && !equal(Tok->Next, ":")){
+        if(isTypename(Tok) && !equal(Tok->Next, ":")){
             VarAttr Attr = {};
             Type *BaseTy = declspec(&Tok, Tok, &Attr);
 
             // 解析typedef的语句
-            if (Attr.IsTypedef){
+            if(Attr.IsTypedef){
                 Tok = parseTypedef(Tok, BaseTy);
                 continue;
             }
@@ -916,7 +937,7 @@ static Node *compoundStmt(Token **Rest, Token *Tok){
 // exprStmt = expr ";"
 static Node *exprStmt(Token **Rest, Token *Tok){
     // ";"
-    if (equal(Tok, ";")){
+    if(equal(Tok, ";")){
         *Rest = Tok->Next;
         return newNode(ND_BLOCK, Tok);
     }
@@ -932,7 +953,7 @@ static Node *exprStmt(Token **Rest, Token *Tok){
 static Node *expr(Token **Rest, Token *Tok){
     Node *Nd = assign(&Tok, Tok);
 
-    if (equal(Tok, ",")){
+    if(equal(Tok, ",")){
         return newBinary(ND_COMMA, Nd, expr(Rest, Tok->Next), Tok);
     }
     
@@ -972,39 +993,39 @@ static Node *assign(Token **Rest, Token *Tok){
 
     // 可能存在递归赋值，如a=b=1
     // ("=" assign)?
-    if (equal(Tok, "=")){
+    if(equal(Tok, "=")){
          return Nd = newBinary(ND_ASSIGN, Nd, assign(Rest, Tok->Next), Tok);
     }
     // ("+=" assign)?
-    if (equal(Tok, "+=")){
+    if(equal(Tok, "+=")){
         return toAssign(newAdd(Nd, assign(Rest, Tok->Next), Tok));
     }
     // ("-=" assign)?
-    if (equal(Tok, "-=")){
+    if(equal(Tok, "-=")){
         return toAssign(newSub(Nd, assign(Rest, Tok->Next), Tok));
     }
     // ("*=" assign)?
-    if (equal(Tok, "*=")){
+    if(equal(Tok, "*=")){
         return toAssign(newBinary(ND_MUL, Nd, assign(Rest, Tok->Next), Tok));
     }
     // ("/=" assign)?
-    if (equal(Tok, "/=")){
+    if(equal(Tok, "/=")){
         return toAssign(newBinary(ND_DIV, Nd, assign(Rest, Tok->Next), Tok));
     }
     // ("%=" assign)?
-    if (equal(Tok, "%=")){
+    if(equal(Tok, "%=")){
         return toAssign(newBinary(ND_MOD, Nd, assign(Rest, Tok->Next), Tok));
     }
     // ("&=" assign)?
-    if (equal(Tok, "&=")){
+    if(equal(Tok, "&=")){
         return toAssign(newBinary(ND_BITAND, Nd, assign(Rest, Tok->Next), Tok));
     }
     // ("|=" assign)?
-    if (equal(Tok, "|=")){
+    if(equal(Tok, "|=")){
         return toAssign(newBinary(ND_BITOR, Nd, assign(Rest, Tok->Next), Tok));
     }
     // ("^=" assign)?
-    if (equal(Tok, "^=")){
+    if(equal(Tok, "^=")){
         return toAssign(newBinary(ND_BITXOR, Nd, assign(Rest, Tok->Next), Tok));
     }
     *Rest = Tok;
@@ -1081,13 +1102,13 @@ static Node *equality(Token **Rest, Token *Tok){
     while (true){
         Token *Start = Tok;
         // "==" relational
-        if (equal(Tok, "==")){
+        if(equal(Tok, "==")){
             Nd = newBinary(ND_EQ, Nd, relational(&Tok, Tok->Next), Start);
             continue;
         }
 
         // "!=" relational
-        if (equal(Tok, "!=")){
+        if(equal(Tok, "!=")){
             Nd = newBinary(ND_NE, Nd, relational(&Tok, Tok->Next), Start);
             continue;
         }
@@ -1107,27 +1128,27 @@ static Node *relational(Token **Rest, Token *Tok){
     while (true){
         Token *Start = Tok;
         // "<" add
-        if (equal(Tok, "<")){
+        if(equal(Tok, "<")){
             Nd = newBinary(ND_LT, Nd, add(&Tok, Tok->Next), Start);
             continue;
         }
 
         // "<=" add
-        if (equal(Tok, "<=")){
+        if(equal(Tok, "<=")){
             Nd = newBinary(ND_LE, Nd, add(&Tok, Tok->Next), Start);
             continue;
         }
 
         // ">" add
         // X>Y等价于Y<X
-        if (equal(Tok, ">")){
+        if(equal(Tok, ">")){
             Nd = newBinary(ND_LT, add(&Tok, Tok->Next), Nd, Start);
             continue;
         }
 
         // ">=" add
         // X>=Y等价于Y<=X
-        if (equal(Tok, ">=")){
+        if(equal(Tok, ">=")){
             Nd = newBinary(ND_LE, add(&Tok, Tok->Next), Nd, Start);
             continue;
         }
@@ -1144,17 +1165,17 @@ static Node *newAdd(Node *LHS, Node *RHS, Token *Tok){
     addType(RHS);
 
     // num + num
-    if (isInteger(LHS->Ty) && isInteger(RHS->Ty)){
+    if(isInteger(LHS->Ty) && isInteger(RHS->Ty)){
         return newBinary(ND_ADD, LHS, RHS, Tok);
     }
 
     // 不能解析 ptr + ptr
-    if (LHS->Ty->Base && RHS->Ty->Base){
+    if(LHS->Ty->Base && RHS->Ty->Base){
         errorTok(Tok, "invalid operands");
     }
 
     // 将 num + ptr 转换为 ptr + num
-    if (!LHS->Ty->Base && RHS->Ty->Base){
+    if(!LHS->Ty->Base && RHS->Ty->Base){
         Node *Tmp = LHS;
         LHS = RHS;
         RHS = Tmp;
@@ -1174,11 +1195,11 @@ static Node *newSub(Node *LHS, Node *RHS, Token *Tok){
   addType(RHS);
 
   // num - num
-  if (isInteger(LHS->Ty) && isInteger(RHS->Ty))
+  if(isInteger(LHS->Ty) && isInteger(RHS->Ty))
     return newBinary(ND_SUB, LHS, RHS, Tok);
 
   // ptr - num
-  if (LHS->Ty->Base && isInteger(RHS->Ty)){
+  if(LHS->Ty->Base && isInteger(RHS->Ty)){
     // 指针用long类型存储
     RHS = newBinary(ND_MUL, RHS, newLong(LHS->Ty->Base->Size, Tok), Tok);
     addType(RHS);
@@ -1189,7 +1210,7 @@ static Node *newSub(Node *LHS, Node *RHS, Token *Tok){
   }
 
   // ptr - ptr，返回两指针间有多少元素
-  if (LHS->Ty->Base && RHS->Ty->Base){
+  if(LHS->Ty->Base && RHS->Ty->Base){
     Node *Nd = newBinary(ND_SUB, LHS, RHS, Tok);
     Nd->Ty = TyInt;
     return newBinary(ND_DIV, Nd, newNum(LHS->Ty->Base->Size, Tok), Tok);
@@ -1245,7 +1266,7 @@ static Node *mul(Token **Rest, Token *Tok ){
         }
 
         // "%" cast
-        if (equal(Tok, "%")){
+        if(equal(Tok, "%")){
             Nd = newBinary(ND_MOD, Nd, cast(&Tok, Tok->Next), Start);
             continue;
         }
@@ -1259,7 +1280,7 @@ static Node *mul(Token **Rest, Token *Tok ){
 // cast = "(" typeName ")" cast | unary
 static Node *cast(Token **Rest, Token *Tok){
     // cast = "(" typeName ")" cast
-    if (equal(Tok, "(") && isTypename(Tok->Next)){
+    if(equal(Tok, "(") && isTypename(Tok->Next)){
         Token *Start = Tok;
         Type *Ty = typename(&Tok, Tok->Next);
         Tok = skip(Tok, ")");
@@ -1279,44 +1300,44 @@ static Node *cast(Token **Rest, Token *Tok){
 //       | postfix
 static Node *unary(Token **Rest, Token *Tok){
     // "+" cast
-    if (equal(Tok, "+")){
+    if(equal(Tok, "+")){
         return cast(Rest, Tok->Next);
     }
 
     // "-" cast
-    if (equal(Tok, "-")){
+    if(equal(Tok, "-")){
         return newUnary(ND_NEG, cast(Rest, Tok->Next), Tok);
     }
 
     // "&" cast
-    if (equal(Tok, "&")){
+    if(equal(Tok, "&")){
         return newUnary(ND_ADDR, cast(Rest, Tok->Next), Tok);
     }
 
     // "*" cast
-    if (equal(Tok, "*")){
+    if(equal(Tok, "*")){
         return newUnary(ND_DEREF, cast(Rest, Tok->Next), Tok);
     }
     
     // "!" cast
-    if (equal(Tok, "!")){
+    if(equal(Tok, "!")){
         return newUnary(ND_NOT, cast(Rest, Tok->Next), Tok);
     }
 
     // "~" cast
-    if (equal(Tok, "~")){
+    if(equal(Tok, "~")){
         return newUnary(ND_BITNOT, cast(Rest, Tok->Next), Tok);
     }
     
     // 转换 ++i 为 i+=1
     // "++" unary
-    if (equal(Tok, "++")){
+    if(equal(Tok, "++")){
         return toAssign(newAdd(unary(Rest, Tok->Next), newNum(1, Tok), Tok));
     }
         
     // 转换 --i 为 i-=1
     // "--" unary
-    if (equal(Tok, "--")){
+    if(equal(Tok, "--")){
         return toAssign(newSub(unary(Rest, Tok->Next), newNum(1, Tok), Tok));
     }
     
@@ -1335,7 +1356,7 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty){
         int First = true;
 
         while (!consume(&Tok, Tok, ";")){
-            if (!First){
+            if(!First){
                 Tok = skip(Tok, ",");
             }
             First = false;
@@ -1356,15 +1377,15 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty){
 static Type *structUnionDecl(Token **Rest, Token *Tok){
     // 读取结构体标签
     Token *Tag = NULL;
-    if (Tok->Kind == TK_IDENT){
+    if(Tok->Kind == TK_IDENT){
         Tag = Tok;
         Tok = Tok->Next;
     }
     // 构造不完整结构体
-    if (Tag && !equal(Tok, "{")){
+    if(Tag && !equal(Tok, "{")){
         *Rest = Tok;
         Type *Ty = findTag(Tag);
-        if (Ty){
+        if(Ty){
             return Ty;
         }
         Ty = structType();
@@ -1380,9 +1401,9 @@ static Type *structUnionDecl(Token **Rest, Token *Tok){
     Ty->Align = 1;
 
     // 如果是重复定义，就覆盖之前的定义。否则有名称就注册结构体类型
-    if (Tag){
+    if(Tag){
         for (TagScope *S = Scp->Tags; S; S = S->Next){
-            if (equal(Tag, S->Name)){
+            if(equal(Tag, S->Name)){
                 *S->Ty = *Ty;
                 return S->Ty;
             }
@@ -1397,7 +1418,7 @@ static Type *structDecl(Token **Rest, Token *Tok){
     Type *Ty = structUnionDecl(Rest, Tok);
     Ty->Kind = TY_STRUCT;
     // 不完整结构体
-    if (Ty->Size < 0){
+    if(Ty->Size < 0){
         return Ty;
     }
     // 计算结构体内成员的偏移量
@@ -1406,7 +1427,7 @@ static Type *structDecl(Token **Rest, Token *Tok){
         Offset = alignTo(Offset, Mem->Ty->Align);
         Mem->Offset = Offset;
         Offset += Mem->Ty->Size;
-        if (Ty->Align < Mem->Ty->Align){
+        if(Ty->Align < Mem->Ty->Align){
             Ty->Align = Mem->Ty->Align;
         }
     }
@@ -1422,10 +1443,10 @@ static Type *unionDecl(Token **Rest, Token *Tok){
 
     // 联合体需要设置为最大的对齐量与大小，变量偏移量都默认为0
     for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
-        if (Ty->Align < Mem->Ty->Align){
+        if(Ty->Align < Mem->Ty->Align){
             Ty->Align = Mem->Ty->Align;
         }
-        if (Ty->Size < Mem->Ty->Size){
+        if(Ty->Size < Mem->Ty->Size){
             Ty->Size = Mem->Ty->Size;
         }
     }
@@ -1437,7 +1458,7 @@ static Type *unionDecl(Token **Rest, Token *Tok){
 // 获取结构体成员
 static Member *getStructMember(Type *Ty, Token *Tok){
     for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
-        if (Mem->Name->Len == Tok->Len &&
+        if(Mem->Name->Len == Tok->Len &&
             !strncmp(Mem->Name->Loc, Tok->Loc, Tok->Len)){
                 return Mem;
             }
@@ -1450,7 +1471,7 @@ static Member *getStructMember(Type *Ty, Token *Tok){
 // 构建结构体成员的节点
 static Node *structRef(Node *LHS, Token *Tok){
     addType(LHS);
-    if (LHS->Ty->Kind != TY_STRUCT && LHS->Ty->Kind != TY_UNION){
+    if(LHS->Ty->Kind != TY_STRUCT && LHS->Ty->Kind != TY_UNION){
         errorTok(LHS->Tok, "not a struct nor a union");
     }
     Node *Nd = newUnary(ND_MEMBER, LHS, Tok);
@@ -1460,7 +1481,7 @@ static Node *structRef(Node *LHS, Token *Tok){
 
 // 转换 A++ 为 `(typeof A)((A += 1) - 1)`
 // Increase Decrease
-static Node *newIncDec(Node *Nd, Token *Tok, int Addend) {
+static Node *newIncDec(Node *Nd, Token *Tok, int Addend){
     addType(Nd);
     return newCast(newAdd(toAssign(newAdd(Nd, newNum(Addend, Tok), Tok)),
                             newNum(-Addend, Tok), Tok),
@@ -1474,7 +1495,7 @@ static Node *postfix(Token **Rest, Token *Tok){
 
     // ("[" expr "]")*
     while (true){
-        if (equal(Tok, "[")){
+        if(equal(Tok, "[")){
             // x[y] 等价于 *(x+y)
             Token *Start = Tok;
             Node *Idx = expr(&Tok, Tok->Next);
@@ -1483,26 +1504,26 @@ static Node *postfix(Token **Rest, Token *Tok){
             continue;
         }
         // "." ident
-        if (equal(Tok, ".")){
+        if(equal(Tok, ".")){
             Nd = structRef(Nd, Tok->Next);
             Tok = Tok->Next->Next;
             continue;
         }
         // "->" ident
-        if (equal(Tok, "->")){
+        if(equal(Tok, "->")){
             // x->y 等价于 (*x).y
             Nd = newUnary(ND_DEREF, Nd, Tok);
             Nd = structRef(Nd, Tok->Next);
             Tok = Tok->Next->Next;
             continue;
         }
-        if (equal(Tok, "++")) {
+        if(equal(Tok, "++")){
             Nd = newIncDec(Nd, Tok, 1);
             Tok = Tok->Next;
             continue;
         }
 
-        if (equal(Tok, "--")) {
+        if(equal(Tok, "--")){
             Nd = newIncDec(Nd, Tok, -1);
             Tok = Tok->Next;
             continue;
@@ -1520,10 +1541,10 @@ static Node *funCall(Token **Rest, Token *Tok){
 
     // 查找函数名
     VarScope *S = findVar(Start);
-    if (!S){
+    if(!S){
         errorTok(Start, "implicit declaration of a function");
     }
-    if (!S->Var || S->Var->Ty->Kind != TY_FUNC){
+    if(!S->Var || S->Var->Ty->Kind != TY_FUNC){
         errorTok(Start, "not a function");
     }
     // 函数名的类型
@@ -1535,15 +1556,15 @@ static Node *funCall(Token **Rest, Token *Tok){
     Node *Cur = &Head;
 
     while (!equal(Tok, ")")){
-        if (Cur != &Head){
+        if(Cur != &Head){
             Tok = skip(Tok, ",");
         }
         // assign
         Node *Arg = assign(&Tok, Tok);
         addType(Arg);
 
-        if (ParamTy){
-            if (ParamTy->Kind == TY_STRUCT || ParamTy->Kind == TY_UNION){
+        if(ParamTy){
+            if(ParamTy->Kind == TY_STRUCT || ParamTy->Kind == TY_UNION){
                 errorTok(Arg->Tok, "passing struct or union is not supported yet");
             }
             // 将参数节点的类型进行转换
@@ -1583,7 +1604,7 @@ static Node *primary(Token **Rest, Token *Tok){
     Token *Start = Tok;
 
     // "(" "{" stmt+ "}" ")"
-    if (equal(Tok, "(") && equal(Tok->Next, "{")){
+    if(equal(Tok, "(") && equal(Tok->Next, "{")){
         // This is a GNU statement expresssion.
         Node *Nd = newNode(ND_STMT_EXPR, Tok);
         Nd->Body = compoundStmt(&Tok, Tok->Next->Next)->Body;
@@ -1597,23 +1618,23 @@ static Node *primary(Token **Rest, Token *Tok){
         return Nd;
     }
       // "sizeof" "(" typeName ")"
-    if (equal(Tok, "sizeof") && equal(Tok->Next, "(") &&
+    if(equal(Tok, "sizeof") && equal(Tok->Next, "(") &&
         isTypename(Tok->Next->Next)){
         Type *Ty = typename(&Tok, Tok->Next->Next);
         *Rest = skip(Tok, ")");
         return newNum(Ty->Size, Start);
     }
     // "sizeof" unary
-    if (equal(Tok, "sizeof")){
+    if(equal(Tok, "sizeof")){
         Node *Nd = unary(Rest, Tok->Next);
         addType(Nd);
         return newNum(Nd->Ty->Size, Tok);
     }
 
     // ident
-    if (Tok->Kind == TK_IDENT){
+    if(Tok->Kind == TK_IDENT){
         // 函数调用
-        if (equal(Tok->Next, "(")){
+        if(equal(Tok->Next, "(")){
             return funCall(Rest, Tok);
         }
 
@@ -1621,13 +1642,13 @@ static Node *primary(Token **Rest, Token *Tok){
         // 查找变量（或枚举常量）
         VarScope *S = findVar(Tok);
         // 如果变量（或枚举类型）不存在，就在链表中新增一个变量
-        if (!S || (!S->Var && !S->EnumTy)){
+        if(!S || (!S->Var && !S->EnumTy)){
             errorTok(Tok, "undefined variable");
         }
 
         Node *Nd;
         // 是否为变量
-        if (S->Var){
+        if(S->Var){
             Nd = newVarNode(S->Var, Tok);
         }
         // 否则为枚举常量
@@ -1639,7 +1660,7 @@ static Node *primary(Token **Rest, Token *Tok){
     }
 
     // str
-    if (Tok->Kind == TK_STR){
+    if(Tok->Kind == TK_STR){
         Obj *Var = newStringLiteral(Tok->Str, Tok->Ty);
         *Rest = Tok->Next;
         return newVarNode(Var, Tok);
@@ -1661,7 +1682,7 @@ static Token *parseTypedef(Token *Tok, Type *BaseTy){
     bool First = true;
 
     while (!consume(&Tok, Tok, ";")){
-        if (!First){
+        if(!First){
             Tok = skip(Tok, ",");
         }
         First = false;
@@ -1675,7 +1696,7 @@ static Token *parseTypedef(Token *Tok, Type *BaseTy){
 
 // 将形参添加到Locals
 static void createParamLVars(Type *Param){
-    if (Param){
+    if(Param){
         // 递归到形参最底部
         // 先将最底部的加入Locals中，之后的都逐个加入到顶部，保持顺序不变
         createParamLVars(Param->Next);
@@ -1686,17 +1707,17 @@ static void createParamLVars(Type *Param){
 
 // 匹配goto和标签
 // 因为标签可能会出现在goto后面，所以要在解析完函数后再进行goto和标签的解析
-static void resolveGotoLabels(void) {
+static void resolveGotoLabels(void){
     // 遍历使goto对应上label
     for (Node *X = Gotos; X; X = X->GotoNext){
         for (Node *Y = Labels; Y; Y = Y->GotoNext){
-            if (!strcmp(X->Label, Y->Label)){
+            if(!strcmp(X->Label, Y->Label)){
                 X->UniqueLabel = Y->UniqueLabel;
                 break;
             }
         }
 
-        if (X->UniqueLabel == NULL){
+        if(X->UniqueLabel == NULL){
             errorTok(X->Tok->Next, "use of undeclared label");
         }
     }
@@ -1715,7 +1736,7 @@ static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr){
     Fn->IsStatic = Attr->IsStatic;
 
     // 判断是否没有函数定义
-    if (!Fn->IsDefinition){
+    if(!Fn->IsDefinition){
         return Tok;
     }
         
@@ -1748,7 +1769,7 @@ static Token *globalVariable(Token *Tok, Type *Basety){
     bool First = true;
 
     while (!consume(&Tok, Tok, ";")){
-        if (!First){
+        if(!First){
             Tok = skip(Tok, ",");
         }
         First = false;
@@ -1761,7 +1782,7 @@ static Token *globalVariable(Token *Tok, Type *Basety){
 
 // 区分 函数还是全局变量
 static bool isFunction(Token *Tok){
-    if (equal(Tok, ";")){
+    if(equal(Tok, ";")){
         return false;
     }
     
@@ -1782,13 +1803,13 @@ Obj * parse(Token *Tok){
         Type *BaseTy = declspec(&Tok, Tok, &Attr);
 
         // typedef
-        if (Attr.IsTypedef){
+        if(Attr.IsTypedef){
             Tok = parseTypedef(Tok, BaseTy);
             continue;
         }
 
         // 函数
-        if (isFunction(Tok)){
+        if(isFunction(Tok)){
             Tok = function(Tok, BaseTy, &Attr);
             continue;
         }
