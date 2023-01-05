@@ -1,5 +1,4 @@
 int main(){
-  int k = 0;
-  int x[3]={1,2,3}; 
+  int x[3]={}; 
   x[0];
 }

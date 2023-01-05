@@ -2,7 +2,7 @@
 
 // 局部变量，全局变量，typedef，enum常量的域
 typedef struct VarScope VarScope;
-struct VarScope {
+struct VarScope{
     VarScope *Next; // 下一变量域
     char *Name;     // 变量域名称
     Obj *Var;       // 对应的变量
@@ -13,7 +13,7 @@ struct VarScope {
 
 // 结构体标签，联合体标签，枚举标签的域
 typedef struct TagScope TagScope;
-struct TagScope {
+struct TagScope{
     TagScope *Next; // 下一标签域
     char *Name;     // 域名称
     Type *Ty;       // 域类型
@@ -21,7 +21,7 @@ struct TagScope {
 
 // 表示一个块域
 typedef struct Scope Scope;
-struct Scope {
+struct Scope{
     Scope *Next; // 指向上一级的域
 
     // C有两个域：变量（或类型别名）域，
@@ -31,14 +31,14 @@ struct Scope {
 };
 
 // 变量属性
-typedef struct {
+typedef struct{
     bool IsTypedef; // 是否为类型别名
     bool IsStatic;  // 是否为文件域内
 } VarAttr;
 
 // 可变的初始化器。此处为树状结构。
 // 因为初始化器可以是嵌套的，
-// 类似于 int x[2][2] = {{1, 2}, {3, 4}} ，
+// 类似于 int x[2][2] ={{1, 2},{3, 4}} ，
 typedef struct Initializer Initializer;
 struct Initializer{
     Initializer *Next; // 下一个
@@ -91,7 +91,7 @@ static Node *CurrentSwitch;
 //             | enumSpecifier)+
 // enumSpecifier = ident? "{" enumList? "}"
 //                 | ident("{" enumList? "}")?
-// enumList = ident ("=" constExpr)? ("," ident ("=" constExpr)?)*
+// enumList = ident("=" constExpr)?("," ident("=" constExpr)?)*
 // declarator = "*"*("(" ident ")" | "(" declarator ")" | ident) typeSuffix
 // typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
@@ -100,9 +100,9 @@ static Node *CurrentSwitch;
 // param = declspec declarator
 
 // compoundStmt =(typedef | declaration | stmt)* "}"
-// declaration = declspec (declarator ("=" initializer)?
-//                         ("," declarator ("=" initializer)?)*)? ";"
-// initializer = "{" initializer ("," initializer)* "}" | assign
+// declaration = declspec(declarator("=" initializer)?
+//                        ("," declarator("=" initializer)?)*)? ";"
+// initializer = "{" initializer("," initializer)* "}" | assign
 // stmt = "return" expr ";"
 //        | "if" "(" expr ")" stmt("else" stmt)?
 //        | "switch" "(" expr ")" stmt
@@ -118,8 +118,8 @@ static Node *CurrentSwitch;
 //        | exprStmt
 // exprStmt = expr? ";"
 // expr = assign("," expr)?
-// assign = conditional (assignOp assign)?
-// conditional = logOr ("?" expr ":" conditional)?
+// assign = conditional(assignOp assign)?
+// conditional = logOr("?" expr ":" conditional)?
 // logOr = logAnd("||" logAnd)*
 // logAnd = bitOr("&&" bitOr)*
 // bitOr = bitXor("|" bitXor)*
@@ -128,8 +128,8 @@ static Node *CurrentSwitch;
 // assignOp = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^="
 //          | "<<=" | ">>="
 // equality = relational("==" relational | "!=" relational)*
-// relational = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
-// shift = add ("<<" add | ">>" add)*
+// relational = shift("<" shift | "<=" shift | ">" shift | ">=" shift)*
+// shift = add("<<" add | ">>" add)*
 // add = mul("+" mul | "-" mul)*
 // mul = cast("*" cast | "/" cast | "%" cast)*
 // cast = "(" typeName ")" cast | unary
@@ -301,11 +301,11 @@ static Initializer *newInitializer(Type *Ty){
     // 存储原始类型
     Init->Ty = Ty;
     // 处理数组类型
-    if (Ty->Kind == TY_ARRAY){
+    if(Ty->Kind == TY_ARRAY){
         // 为数组的最外层的每个元素分配空间
         Init->Children = calloc(Ty->ArrayLen, sizeof(Initializer *));
         // 遍历解析数组最外层的每个元素
-        for (int I = 0; I < Ty->ArrayLen; ++I){
+        for(int I = 0; I < Ty->ArrayLen; ++I){
             Init->Children[I] = newInitializer(Ty->Base);
         }
     }
@@ -395,7 +395,7 @@ static void pushTagScope(Token *Tok, Type *Ty){
 static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr){
     // 类型的组合，被表示为例如：LONG+LONG=1<<9
     // 可知long int和int long是等价的。
-    enum {
+    enum{
         VOID    = 1 << 0,
         BOOL    = 1 << 2,
         CHAR    = 1 << 4,
@@ -444,7 +444,7 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr){
             else if(equal(Tok, "enum")){
                 Ty = enumSpecifier(&Tok, Tok->Next);
             } 
-            else {
+            else{
                 // 将类型设为类型别名指向的类型
                 Ty = Ty2;
                 Tok = Tok->Next;
@@ -515,7 +515,7 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr){
 // funcParams =(param("," param)*)? ")"
 // param = declspec declarator
 static Type *funcParams(Token **Rest, Token *Tok, Type *Ty){
-    Type Head = {};
+    Type Head ={};
     Type *Cur = &Head;
 
     while(!equal(Tok, ")")){
@@ -589,7 +589,7 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty){
     if(equal(Tok, "(")){
         // 记录"("的位置
         Token *Start = Tok;
-        Type Dummy = {};
+        Type Dummy ={};
         // 使Tok前进到")"后面的位置
         declarator(&Tok, Start->Next, &Dummy);
         Tok = skip(Tok, ")");
@@ -622,7 +622,7 @@ static Type *abstractDeclarator(Token **Rest, Token *Tok, Type *Ty){
     //("(" abstractDeclarator ")")?
     if(equal(Tok, "(")){
         Token *Start = Tok;
-        Type Dummy = {};
+        Type Dummy ={};
         // 使Tok前进到")"后面的位置
         abstractDeclarator(&Tok, Start->Next, &Dummy);
         Tok = skip(Tok, ")");
@@ -699,10 +699,10 @@ static Type *enumSpecifier(Token **Rest, Token *Tok){
     return Ty;
 }
 
-// declaration = declspec (declarator ("=" initializer)?
-//                         ("," declarator ("=" initializer)?)*)? ";"
+// declaration = declspec(declarator("=" initializer)?
+//                        ("," declarator("=" initializer)?)*)? ";"
 static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy){
-    Node Head = {};
+    Node Head ={};
     Node *Cur = &Head;
     // 对变量声明次数计数
     int I = 0;
@@ -726,7 +726,7 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy){
         Obj *Var = newLVar(getIdent(Ty->Name), Ty);
 
         // 如果不存在"="则为变量声明，不需要生成节点，已经存储在Locals中了
-        if (equal(Tok, "=")){
+        if(equal(Tok, "=")){
             // 解析变量的初始化器
             Node *Expr = LVarInitializer(&Tok, Tok->Next, Var);
             // 存放在表达式语句中
@@ -742,17 +742,35 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy){
     return Nd;
 }
 
-// initializer = "{" initializer ("," initializer)* "}" | assign
+// 跳过多余的元素
+static Token *skipExcessElement(Token *Tok){
+    if(equal(Tok, "{")){
+        Tok = skipExcessElement(Tok->Next);
+        return skip(Tok, "}");
+    }
+    // 解析并舍弃多余的元素
+    assign(&Tok, Tok);
+    return Tok;
+}
+
+// initializer = "{" initializer("," initializer)* "}" | assign
 static void initializer2(Token **Rest, Token *Tok, Initializer *Init){
-    // "{" initializer ("," initializer)* "}"
-    if (Init->Ty->Kind == TY_ARRAY) {
+    // "{" initializer("," initializer)* "}"
+    if(Init->Ty->Kind == TY_ARRAY){
         Tok = skip(Tok, "{");
         // 遍历数组
-        for (int I = 0; I < Init->Ty->ArrayLen && !equal(Tok, "}"); I++) {
-            if (I > 0){
+        for(int I = 0; !consume(Rest, Tok, "}"); I++){
+            if(I > 0){
                 Tok = skip(Tok, ",");
             }
-            initializer2(&Tok, Tok, Init->Children[I]);
+            // 正常解析元素
+            if (I < Init->Ty->ArrayLen){
+                initializer2(&Tok, Tok, Init->Children[I]);
+            }
+            // 跳过多余的元素
+            else{
+                Tok = skipExcessElement(Tok);
+            }
         }
         *Rest = skip(Tok, "}");
         return;
@@ -763,7 +781,7 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init){
 }
 
 // 初始化器
-static Initializer *initializer(Token **Rest, Token *Tok, Type *Ty) {
+static Initializer *initializer(Token **Rest, Token *Tok, Type *Ty){
     // 新建一个解析了类型的初始化器
     Initializer *Init = newInitializer(Ty);
     // 解析需要赋值到Init中
@@ -772,9 +790,9 @@ static Initializer *initializer(Token **Rest, Token *Tok, Type *Ty) {
 }
 
 // 指派初始化表达式
-static Node *initDesigExpr(InitDesig *Desig, Token *Tok) {
+static Node *initDesigExpr(InitDesig *Desig, Token *Tok){
     // 返回Desig中的变量
-    if (Desig->Var){
+    if(Desig->Var){
         return newVarNode(Desig->Var, Tok);
     }
     // 需要赋值的变量名
@@ -794,7 +812,7 @@ static Node *createLVarInit(Initializer *Init, Type *Ty, InitDesig *Desig, Token
         Node *Nd = newNode(ND_NULL_EXPR, Tok);
         for(int I = 0; I < Ty->ArrayLen; I++){
             // 这里next指向了上一级Desig的信息，以及在其中的偏移量。
-            InitDesig Desig2 = {Desig, I};
+            InitDesig Desig2 ={Desig, I};
             // 局部变量进行初始化
             Node *RHS = createLVarInit(Init->Children[I], Ty->Base, &Desig2, Tok);
             // 构造一个形如：NULL_EXPR，EXPR1，EXPR2…的二叉树
@@ -803,7 +821,7 @@ static Node *createLVarInit(Initializer *Init, Type *Ty, InitDesig *Desig, Token
         return Nd;
     }
     // 如果需要作为右值的表达式为空，则设为空表达式
-    if (!Init->Expr){
+    if(!Init->Expr){
         return newNode(ND_NULL_EXPR, Tok);
     }
     // 变量等可以直接赋值的左值
@@ -812,11 +830,11 @@ static Node *createLVarInit(Initializer *Init, Type *Ty, InitDesig *Desig, Token
 }
 
 // 局部变量初始化器
-static Node *LVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
+static Node *LVarInitializer(Token **Rest, Token *Tok, Obj *Var){
     // 获取初始化器，将值与数据结构一一对应
     Initializer *Init = initializer(Rest, Tok, Var->Ty);
     // 指派初始化
-    InitDesig Desig = {NULL, 0, Var};
+    InitDesig Desig ={NULL, 0, Var};
     // 我们首先为所有元素赋0，然后有指定值的再进行赋值
     Node *LHS = newNode(ND_MEMZERO, Tok);
     LHS->Var = Var;
@@ -828,7 +846,7 @@ static Node *LVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
 
 // 判断是否为类型名
 static bool isTypename(Token *Tok){
-    static char *Kw[] = {
+    static char *Kw[] ={
         "void",  "_Bool",  "char",  "short",   "int",
         "long",  "struct", "union", "typedef", "enum",
         "static",
@@ -936,7 +954,7 @@ static Node *stmt(Token **Rest, Token *Tok){
     }
 
     // "default" ":" stmt
-    if(equal(Tok, "default")) {
+    if(equal(Tok, "default")){
         if(!CurrentSwitch){
             errorTok(Tok, "stray default");
         }
@@ -971,7 +989,7 @@ static Node *stmt(Token **Rest, Token *Tok){
             Type *BaseTy = declspec(&Tok, Tok, NULL);
             Nd->Init = declaration(&Tok, Tok, BaseTy);
         } 
-        else {
+        else{
             // 初始化语句
             Nd->Init = exprStmt(&Tok, Tok);
         }
@@ -1085,7 +1103,7 @@ static Node *compoundStmt(Token **Rest, Token *Tok){
     Node *Nd = newNode(ND_BLOCK, Tok);
 
     // 这里使用了和词法分析类似的单向链表结构
-    Node Head = {};
+    Node Head ={};
     Node *Cur = &Head;
 
     // 进入新的域
@@ -1095,7 +1113,7 @@ static Node *compoundStmt(Token **Rest, Token *Tok){
     while(!equal(Tok, "}")){
         // declaration
         if(isTypename(Tok) && !equal(Tok->Next, ":")){
-            VarAttr Attr = {};
+            VarAttr Attr ={};
             Type *BaseTy = declspec(&Tok, Tok, &Attr);
 
             // 解析typedef的语句
@@ -1154,9 +1172,9 @@ static Node *expr(Token **Rest, Token *Tok){
 }
 
 // 计算给定节点的常量表达式计算
-static int64_t eval(Node *Nd) {
+static int64_t eval(Node *Nd){
     addType(Nd);
-    switch (Nd->Kind) {
+    switch(Nd->Kind){
         case ND_ADD:
             return eval(Nd->LHS) + eval(Nd->RHS);
         case ND_SUB:
@@ -1203,11 +1221,11 @@ static int64_t eval(Node *Nd) {
             if(isInteger(Nd->Ty)){
                 switch(Nd->Ty->Size){
                     case 1:
-                        return (uint8_t)eval(Nd->LHS);
+                        return(uint8_t)eval(Nd->LHS);
                     case 2:
-                        return (uint16_t)eval(Nd->LHS);
+                        return(uint16_t)eval(Nd->LHS);
                     case 4:
-                        return (uint32_t)eval(Nd->LHS);
+                        return(uint32_t)eval(Nd->LHS);
                 }
             }
             return eval(Nd->LHS);
@@ -1222,7 +1240,7 @@ static int64_t eval(Node *Nd) {
 }
 
 // 解析常量表达式
-static int64_t constExpr(Token **Rest, Token *Tok) {
+static int64_t constExpr(Token **Rest, Token *Tok){
     // 进行常量表达式的构造
     Node *Nd = conditional(Rest, Tok);
     // 进行常量表达式的计算
@@ -1253,7 +1271,7 @@ static Node *toAssign(Node *Binary){
 }
 
 // 解析赋值
-// assign = conditional (assignOp assign)?
+// assign = conditional(assignOp assign)?
 // assignOp = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^="
 //          | "<<=" | ">>="
 static Node *assign(Token **Rest, Token *Tok){
@@ -1297,12 +1315,12 @@ static Node *assign(Token **Rest, Token *Tok){
     if(equal(Tok, "^=")){
         return toAssign(newBinary(ND_BITXOR, Nd, assign(Rest, Tok->Next), Tok));
     }
-      // ("<<=" assign)?
-    if (equal(Tok, "<<=")){
+      //("<<=" assign)?
+    if(equal(Tok, "<<=")){
         return toAssign(newBinary(ND_SHL, Nd, assign(Rest, Tok->Next), Tok));
     }
-    // (">>=" assign)?
-    if (equal(Tok, ">>=")){
+    //(">>=" assign)?
+    if(equal(Tok, ">>=")){
         return toAssign(newBinary(ND_SHR, Nd, assign(Rest, Tok->Next), Tok));
     }
     *Rest = Tok;
@@ -1310,7 +1328,7 @@ static Node *assign(Token **Rest, Token *Tok){
 }
 
 // 解析条件运算符
-// conditional = logOr ("?" expr ":" conditional)?
+// conditional = logOr("?" expr ":" conditional)?
 static Node *conditional(Token **Rest, Token *Tok){
     // logOr
     Node *Cond = logOr(&Tok, Tok);
@@ -1419,11 +1437,11 @@ static Node *equality(Token **Rest, Token *Tok){
 }
 
 // 解析比较关系
-// relational = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
+// relational = shift("<" shift | "<=" shift | ">" shift | ">=" shift)*
 static Node *relational(Token **Rest, Token *Tok){
     // shift
     Node *Nd = shift(&Tok, Tok);
-    // ("<" shift | "<=" shift | ">" shift | ">=" shift)*
+    //("<" shift | "<=" shift | ">" shift | ">=" shift)*
     while(true){
         Token *Start = Tok;
         // "<" shift
@@ -1454,8 +1472,8 @@ static Node *relational(Token **Rest, Token *Tok){
 }
 
 // 解析位移
-// shift = add ("<<" add | ">>" add)*
-static Node *shift(Token **Rest, Token *Tok) {
+// shift = add("<<" add | ">>" add)*
+static Node *shift(Token **Rest, Token *Tok){
     // add
     Node *Nd = add(&Tok, Tok);
     while(true){
@@ -1664,7 +1682,7 @@ static Node *unary(Token **Rest, Token *Tok){
 
 // structMembers =(declspec declarator(","  declarator)* ";")*
 static void structMembers(Token **Rest, Token *Tok, Type *Ty){
-    Member Head = {};
+    Member Head ={};
     Member *Cur = &Head;
 
     while(!equal(Tok, "}")){
@@ -1869,7 +1887,7 @@ static Node *funCall(Token **Rest, Token *Tok){
     // 函数形参的类型
     Type *ParamTy = Ty->Params;
 
-    Node Head = {};
+    Node Head ={};
     Node *Cur = &Head;
 
     while(!equal(Tok, ")")){
@@ -2104,7 +2122,7 @@ static bool isFunction(Token *Tok){
     }
     
     // 虚设变量，用于调用declarator
-    Type Dummy = {};
+    Type Dummy ={};
     Type *Ty = declarator(&Tok, Tok, &Dummy);
     return Ty->Kind == TY_FUNC;
 }
@@ -2116,7 +2134,7 @@ Obj * parse(Token *Tok){
     Globals = NULL;
 
     while(Tok->Kind != TK_EOF){
-        VarAttr Attr = {};
+        VarAttr Attr ={};
         Type *BaseTy = declspec(&Tok, Tok, &Attr);
 
         // typedef
