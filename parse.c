@@ -58,6 +58,7 @@ typedef struct InitDesig InitDesig;
 struct InitDesig{
     InitDesig *Next; // 下一个
     int Idx;         // 数组中的索引
+    Member *Mem;     // 成员变量
     Obj *Var;        // 对应的变量
 };
 
@@ -103,9 +104,11 @@ static Node *CurrentSwitch;
 // compoundStmt =(typedef | declaration | stmt)* "}"
 // declaration = declspec(declarator("=" initializer)?
 //                        ("," declarator("=" initializer)?)*)? ";"
-// initializer = stringInitializer | arrayInitializer | assign
+// initializer = stringInitializer | arrayInitializer | structInitializer
+//             | assign
 // stringInitializer = stringLiteral
 // arrayInitializer = "{" initializer ("," initializer)* "}"
+// structInitializer = "{" initializer ("," initializer)* "}"
 // stmt = "return" expr ";"
 //        | "if" "(" expr ")" stmt("else" stmt)?
 //        | "switch" "(" expr ")" stmt
@@ -320,6 +323,24 @@ static Initializer *newInitializer(Type *Ty, bool IsFlexible) {
             Init->Children[I] = newInitializer(Ty->Base, false);
         }
     }
+    // 处理结构体
+    if (Ty->Kind == TY_STRUCT) {
+        // 计算结构体成员的数量
+        int Len = 0;
+        for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
+            Mem->Idx = Len;//wuxian 添加，此处应该是少了这么一句话，没有这句话后边的children访问就一直访问的是第一个元素
+            ++Len;
+        }
+        // 初始化器的子项
+        Init->Children = calloc(Len, sizeof(Initializer *));
+
+        // 遍历子项进行赋值
+        for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
+            Init->Children[Mem->Idx] = newInitializer(Mem->Ty, false);
+        }
+        return Init;
+    }
+
     return Init;
 }
 
@@ -821,7 +842,29 @@ static void arrayInitializer(Token **Rest, Token *Tok, Initializer *Init) {
     }
 }
 
-// initializer = stringInitializer | arrayInitializer | assign
+// structInitializer = "{" initializer ("," initializer)* "}"
+static void structInitializer(Token **Rest, Token *Tok, Initializer *Init) {
+    Tok = skip(Tok, "{");
+    // 成员变量的链表
+    Member *Mem = Init->Ty->Mems;
+    while (!consume(Rest, Tok, "}")) {
+        // Mem未指向Init->Ty->Mems，则说明Mem进行过Next的操作，就不是第一个
+        if (Mem != Init->Ty->Mems){
+            Tok = skip(Tok, ",");
+        }
+        if (Mem) {
+            // 处理成员
+            initializer2(&Tok, Tok, Init->Children[Mem->Idx]);
+            Mem = Mem->Next;
+        } else {
+            // 处理多余的成员
+            Tok = skipExcessElement(Tok);
+        }
+    }
+}
+
+// initializer = stringInitializer | arrayInitializer | structInitializer
+//             | assign
 static void initializer2(Token **Rest, Token *Tok, Initializer *Init){
     // 字符串字面量的初始化
     if (Init->Ty->Kind == TY_ARRAY && Tok->Kind == TK_STR) {
@@ -831,6 +874,11 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init){
     // 数组的初始化
     if (Init->Ty->Kind == TY_ARRAY) {
         arrayInitializer(Rest, Tok, Init);
+        return;
+    }
+    // 结构体的初始化
+    if (Init->Ty->Kind == TY_STRUCT) {
+        structInitializer(Rest, Tok, Init);
         return;
     }
     // assign
@@ -854,6 +902,12 @@ static Node *initDesigExpr(InitDesig *Desig, Token *Tok){
     // 返回Desig中的变量
     if(Desig->Var){
         return newVarNode(Desig->Var, Tok);
+    }
+    // 返回Desig中的成员变量
+    if (Desig->Mem) {
+        Node *Nd = newUnary(ND_MEMBER, initDesigExpr(Desig->Next, Tok), Tok);
+        Nd->Mem = Desig->Mem;
+        return Nd;
     }
     // 需要赋值的变量名
     // 递归到次外层Desig，有此时最外层有Desig->Var
@@ -880,6 +934,17 @@ static Node *createLVarInit(Initializer *Init, Type *Ty, InitDesig *Desig, Token
         }
         return Nd;
     }
+    if (Ty->Kind == TY_STRUCT) {
+        // 构造结构体的初始化器结构
+        Node *Nd = newNode(ND_NULL_EXPR, Tok);
+        for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+            // Desig2存储了成员变量
+            InitDesig Desig2 = {Desig, 0, Mem};
+            Node *RHS = createLVarInit(Init->Children[Mem->Idx], Mem->Ty, &Desig2, Tok);
+            Nd = newBinary(ND_COMMA, Nd, RHS, Tok);
+        }
+        return Nd;
+    }
     // 如果需要作为右值的表达式为空，则设为空表达式
     if(!Init->Expr){
         return newNode(ND_NULL_EXPR, Tok);
@@ -894,7 +959,7 @@ static Node *LVarInitializer(Token **Rest, Token *Tok, Obj *Var){
     // 获取初始化器，将值与数据结构一一对应
     Initializer *Init = initializer(Rest, Tok, Var->Ty, &Var->Ty);
     // 指派初始化
-    InitDesig Desig ={NULL, 0, Var};
+    InitDesig Desig = {NULL, 0, NULL, Var};
     // 我们首先为所有元素赋0，然后有指定值的再进行赋值
     Node *LHS = newNode(ND_MEMZERO, Tok);
     LHS->Var = Var;
