@@ -1,4 +1,4 @@
 int main(){
-  struct {int a; int b; int c;} x={1,2,3}; 
-  x.a;
+  union { int a; char b[4]; } x={0x01020304}; 
+  x.b[0];
 }
