@@ -1,3 +1,8 @@
+char g3 = 3;
+short g4 = 4;
+int g5 = 5;
+long g6 = 6;
+
 int main(){
   union { int a; char b[4]; } x={0x01020304}; 
   x.b[0];
