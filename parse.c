@@ -1029,8 +1029,16 @@ static void writeGVarData(Initializer *Init, Type *Ty, char *Buf, int Offset) {
         for (int I = 0; I < Ty->ArrayLen; I++){
             writeGVarData(Init->Children[I], Ty->Base, Buf, Offset + Sz * I);
         }
-    return;
+        return;
     }
+    // 处理结构体
+    if (Ty->Kind == TY_STRUCT) {
+        for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
+            writeGVarData(Init->Children[Mem->Idx], Mem->Ty, Buf, Offset + Mem->Offset);
+        }
+        return;
+    }
+
     // 计算常量表达式
     if (Init->Expr){
         writeBuf(Buf + Offset, eval(Init->Expr), Ty->Size);
