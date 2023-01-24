@@ -1,7 +1,12 @@
-char g3 = 3;
-short g4 = 4;
-int g5 = 5;
-long g6 = 6;
+
+// [107] 为全局变量处理联合体初始化
+union { int a; char b[8]; } g13[2] = {{0x01020304}, {0x05060708}};
+char g17[] = "foobar";
+int g24=3;
+int *g27 = g17+ 1;
+long g29 = (long)(long)g17;
+struct { struct { int a[3]; } a; } g30 = {{{1,2,3}}};
+int *g31=g30.a.a;
 
 int main(){
   union { int a; char b[4]; } x={0x01020304}; 
