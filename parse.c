@@ -93,7 +93,7 @@ static Node *CurrentSwitch;
 //             | enumSpecifier)+
 // enumSpecifier = ident? "{" enumList? "}"
 //                 | ident("{" enumList? "}")?
-// enumList = ident ("=" constExpr)? ("," ident ("=" constExpr)?)* ","?
+// enumList = ident("=" constExpr)?("," ident("=" constExpr)?)* ","?
 // declarator = "*"*("(" ident ")" | "(" declarator ")" | ident) typeSuffix
 // typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
@@ -103,18 +103,18 @@ static Node *CurrentSwitch;
 
 // compoundStmt =(typedef | declaration | stmt)* "}"
 // declaration = declspec(declarator("=" initializer)?
-//                        ("," declarator("=" initializer)?)*)? ";"
+//                       ("," declarator("=" initializer)?)*)? ";"
 // initializer = stringInitializer | arrayInitializer | structInitializer
 //             | unionInitializer | assign
 // stringInitializer = stringLiteral
 
 // arrayInitializer = arrayInitializer1 | arrayInitializer2
-// arrayInitializer1 = "{" initializer ("," initializer)* ","? "}"
-// arrayIntializer2 = initializer ("," initializer)* ","?
+// arrayInitializer1 = "{" initializer("," initializer)* ","? "}"
+// arrayIntializer2 = initializer("," initializer)* ","?
 
 // structInitializer = structInitializer1 | structInitializer2
-// structInitializer1 = "{" initializer ("," initializer)* ","? "}"
-// structIntializer2 = initializer ("," initializer)* ","?
+// structInitializer1 = "{" initializer("," initializer)* ","? "}"
+// structIntializer2 = initializer("," initializer)* ","?
 
 // unionInitializer = "{" initializer "}"
 // stmt = "return" expr ";"
@@ -316,14 +316,14 @@ static VarScope *pushScope(char *Name){
 }
 
 // 新建初始化器
-static Initializer *newInitializer(Type *Ty, bool IsFlexible) {
+static Initializer *newInitializer(Type *Ty, bool IsFlexible){
     Initializer *Init = calloc(1, sizeof(Initializer));
     // 存储原始类型
     Init->Ty = Ty;
     // 处理数组类型
     if(Ty->Kind == TY_ARRAY){
         // 判断是否需要调整数组元素数并且数组不完整
-        if (IsFlexible && Ty->Size < 0) {
+        if(IsFlexible && Ty->Size < 0){
             // 设置初始化器为可调整的，之后进行完数组元素数的计算后，再构造初始化器
             Init->IsFlexible = true;
             return Init;
@@ -336,18 +336,29 @@ static Initializer *newInitializer(Type *Ty, bool IsFlexible) {
         }
     }
     // 处理结构体和联合体
-    if (Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION) {
+    if(Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION){
         // 计算结构体成员的数量
         int Len = 0;
-        for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
+        for(Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
             ++Len;
         }
         // 初始化器的子项
         Init->Children = calloc(Len, sizeof(Initializer *));
 
         // 遍历子项进行赋值
-        for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
-            Init->Children[Mem->Idx] = newInitializer(Mem->Ty, false);
+        for(Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
+            // 判断结构体是否是灵活的，同时成员也是灵活的并且是最后一个
+            // 在这里直接构造，避免对于灵活数组的解析
+            if(IsFlexible && Ty->IsFlexible && !Mem->Next){
+                Initializer *Child = calloc(1, sizeof(Initializer));
+                Child->Ty = Mem->Ty;
+                Child->IsFlexible = true;
+                Init->Children[Mem->Idx] = Child;
+            } 
+            else{
+                // 对非灵活子项进行赋值
+                Init->Children[Mem->Idx] = newInitializer(Mem->Ty, false);
+            }
         }
         return Init;
     }
@@ -689,22 +700,22 @@ static Type *typename(Token **Rest, Token *Tok){
 }
 
 // 判断是否终结符匹配到了结尾
-static bool isEnd(Token *Tok) {
+static bool isEnd(Token *Tok){
     // "}" | ",}"
-    return equal(Tok, "}") || (equal(Tok, ",") && equal(Tok->Next, "}"));
+    return equal(Tok, "}") ||(equal(Tok, ",") && equal(Tok->Next, "}"));
 }
 
 // 消耗掉结尾的终结符
 // "}" | ",}"
-static bool consumeEnd(Token **Rest, Token *Tok) {
+static bool consumeEnd(Token **Rest, Token *Tok){
     // "}"
-    if (equal(Tok, "}")) {
+    if(equal(Tok, "}")){
         *Rest = Tok->Next;
         return true;
     }
 
     // ",}"
-    if (equal(Tok, ",") && equal(Tok->Next, "}")) {
+    if(equal(Tok, ",") && equal(Tok->Next, "}")){
         *Rest = Tok->Next->Next;
         return true;
     }
@@ -767,7 +778,7 @@ static Type *enumSpecifier(Token **Rest, Token *Tok){
 }
 
 // declaration = declspec(declarator("=" initializer)?
-//                        ("," declarator("=" initializer)?)*)? ";"
+//                       ("," declarator("=" initializer)?)*)? ";"
 static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy){
     Node Head ={};
     Node *Cur = &Head;
@@ -796,10 +807,10 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy){
             Cur->Next = newUnary(ND_EXPR_STMT, Expr, Tok);
             Cur = Cur->Next;
         }
-        if (Var->Ty->Size < 0){
+        if(Var->Ty->Size < 0){
             errorTok(Ty->Name, "variable has incomplete type");
         }
-        if (Var->Ty->Kind == TY_VOID){
+        if(Var->Ty->Kind == TY_VOID){
             errorTok(Ty->Name, "variable declared void");
         }
     }
@@ -822,29 +833,29 @@ static Token *skipExcessElement(Token *Tok){
 }
 
 // stringInitializer = stringLiteral
-static void stringInitializer(Token **Rest, Token *Tok, Initializer *Init) {
+static void stringInitializer(Token **Rest, Token *Tok, Initializer *Init){
     // 如果是可调整的，就构造一个包含数组的初始化器
     // 字符串字面量在词法解析部分已经增加了'\0'
-    if (Init->IsFlexible){
+    if(Init->IsFlexible){
         *Init = *newInitializer(arrayOf(Init->Ty->Base, Tok->Ty->ArrayLen), false);
     }
     // 取数组和字符串的最短长度
     int Len = MIN(Init->Ty->ArrayLen, Tok->Ty->ArrayLen);
     // 遍历赋值
-    for (int I = 0; I < Len; I++){
+    for(int I = 0; I < Len; I++){
         Init->Children[I]->Expr = newNum(Tok->Str[I], Tok);
     }
     *Rest = Tok->Next;
 }
 
 // 计算数组初始化元素个数
-static int countArrayInitElements(Token *Tok, Type *Ty) {
+static int countArrayInitElements(Token *Tok, Type *Ty){
     Initializer *Dummy = newInitializer(Ty->Base, false);
     // 项数
     int I = 0;
     // 遍历所有匹配的项
-    for (; !consumeEnd(&Tok, Tok); I++) {
-        if (I > 0){
+    for(; !consumeEnd(&Tok, Tok); I++){
+        if(I > 0){
             Tok = skip(Tok, ",");
         }
         initializer2(&Tok, Tok, Dummy);
@@ -852,11 +863,11 @@ static int countArrayInitElements(Token *Tok, Type *Ty) {
     return I;
 }
 
-// arrayInitializer1 = "{" initializer ("," initializer)* ","? "}"
-static void arrayInitializer1(Token **Rest, Token *Tok, Initializer *Init) {
+// arrayInitializer1 = "{" initializer("," initializer)* ","? "}"
+static void arrayInitializer1(Token **Rest, Token *Tok, Initializer *Init){
     Tok = skip(Tok, "{");
     // 如果数组是可调整的，那么就计算数组的元素数，然后进行初始化器的构造
-    if (Init->IsFlexible) {
+    if(Init->IsFlexible){
         int Len = countArrayInitElements(Tok, Init->Ty);
         // 在这里Ty也被重新构造为了数组
         *Init = *newInitializer(arrayOf(Init->Ty->Base, Len), false);
@@ -867,7 +878,7 @@ static void arrayInitializer1(Token **Rest, Token *Tok, Initializer *Init) {
             Tok = skip(Tok, ",");
         }
         // 正常解析元素
-        if (I < Init->Ty->ArrayLen){
+        if(I < Init->Ty->ArrayLen){
             initializer2(&Tok, Tok, Init->Children[I]);
         }
         // 跳过多余的元素
@@ -877,17 +888,17 @@ static void arrayInitializer1(Token **Rest, Token *Tok, Initializer *Init) {
     }
 }
 
-// arrayIntializer2 = initializer ("," initializer)* ","?
+// arrayIntializer2 = initializer("," initializer)* ","?
 static void arrayInitializer2(Token **Rest, Token *Tok, Initializer *Init){
     // 如果数组是可调整的，那么就计算数组的元素数，然后进行初始化器的构造
-    if (Init->IsFlexible){
+    if(Init->IsFlexible){
         int Len = countArrayInitElements(Tok, Init->Ty);
         *Init = *newInitializer(arrayOf(Init->Ty->Base, Len), false);
     }
 
     // 遍历数组
-    for (int I = 0; I < Init->Ty->ArrayLen && !isEnd(Tok); I++){
-        if (I > 0){
+    for(int I = 0; I < Init->Ty->ArrayLen && !isEnd(Tok); I++){
+        if(I > 0){
             Tok = skip(Tok, ",");
         }
         initializer2(&Tok, Tok, Init->Children[I]);
@@ -895,33 +906,33 @@ static void arrayInitializer2(Token **Rest, Token *Tok, Initializer *Init){
     *Rest = Tok;
 }
 
-// structInitializer1 = "{" initializer ("," initializer)* ","? "}"
-static void structInitializer1(Token **Rest, Token *Tok, Initializer *Init) {
+// structInitializer1 = "{" initializer("," initializer)* ","? "}"
+static void structInitializer1(Token **Rest, Token *Tok, Initializer *Init){
     Tok = skip(Tok, "{");
     // 成员变量的链表
     Member *Mem = Init->Ty->Mems;
     while(!consumeEnd(Rest, Tok)){
         // Mem未指向Init->Ty->Mems，则说明Mem进行过Next的操作，就不是第一个
-        if (Mem != Init->Ty->Mems){
+        if(Mem != Init->Ty->Mems){
             Tok = skip(Tok, ",");
         }
-        if (Mem) {
+        if(Mem){
             // 处理成员
             initializer2(&Tok, Tok, Init->Children[Mem->Idx]);
             Mem = Mem->Next;
-        } else {
+        } else{
             // 处理多余的成员
             Tok = skipExcessElement(Tok);
         }
     }
 }
 
-// structIntializer2 = initializer ("," initializer)* ","?
-static void structInitializer2(Token **Rest, Token *Tok, Initializer *Init) {
+// structIntializer2 = initializer("," initializer)* ","?
+static void structInitializer2(Token **Rest, Token *Tok, Initializer *Init){
     bool First = true;
     // 遍历所有成员变量
-    for (Member *Mem = Init->Ty->Mems; Mem && !isEnd(Tok); Mem = Mem->Next) {
-        if (!First){
+    for(Member *Mem = Init->Ty->Mems; Mem && !isEnd(Tok); Mem = Mem->Next){
+        if(!First){
             Tok = skip(Tok, ",");
         }
         First = false;
@@ -931,16 +942,16 @@ static void structInitializer2(Token **Rest, Token *Tok, Initializer *Init) {
 }
 
 // unionInitializer = "{" initializer "}"
-static void unionInitializer(Token **Rest, Token *Tok, Initializer *Init) {
+static void unionInitializer(Token **Rest, Token *Tok, Initializer *Init){
     // 联合体只接受第一个成员用来初始化
-    if (equal(Tok, "{")) {
+    if(equal(Tok, "{")){
         // 存在括号的情况
         initializer2(&Tok, Tok->Next, Init->Children[0]);
         // ","?
         consume(&Tok, Tok, ",");
         *Rest = skip(Tok, "}");
     } 
-    else {
+    else{
         // 不存在括号的情况
         initializer2(Rest, Tok, Init->Children[0]);
     }
@@ -950,13 +961,13 @@ static void unionInitializer(Token **Rest, Token *Tok, Initializer *Init) {
 //             | unionInitializer |assign
 static void initializer2(Token **Rest, Token *Tok, Initializer *Init){
     // 字符串字面量的初始化
-    if (Init->Ty->Kind == TY_ARRAY && Tok->Kind == TK_STR) {
+    if(Init->Ty->Kind == TY_ARRAY && Tok->Kind == TK_STR){
         stringInitializer(Rest, Tok, Init);
         return;
     }
     // 数组的初始化
-    if (Init->Ty->Kind == TY_ARRAY) {
-        if (equal(Tok, "{")){
+    if(Init->Ty->Kind == TY_ARRAY){
+        if(equal(Tok, "{")){
             // 存在括号的情况
             arrayInitializer1(Rest, Tok, Init);
         }
@@ -967,17 +978,17 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init){
         return;
     }
     // 结构体的初始化
-    if (Init->Ty->Kind == TY_STRUCT) {
+    if(Init->Ty->Kind == TY_STRUCT){
         // 匹配使用其他结构体来赋值，其他结构体需要先被解析过
         // 存在括号的情况
-        if (equal(Tok, "{")) {
+        if(equal(Tok, "{")){
             structInitializer1(Rest, Tok, Init);
             return;
         }
         // 不存在括号的情况
         Node *Expr = assign(Rest, Tok);
         addType(Expr);
-        if (Expr->Ty->Kind == TY_STRUCT) {
+        if(Expr->Ty->Kind == TY_STRUCT){
             Init->Expr = Expr;
             return;
         }
@@ -987,13 +998,13 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init){
     }
 
     // 联合体的初始化
-    if (Init->Ty->Kind == TY_UNION) {
+    if(Init->Ty->Kind == TY_UNION){
         unionInitializer(Rest, Tok, Init);
         return;
     }
 
-    // 处理标量外的大括号，例如：int x = {3};
-    if (equal(Tok, "{")) {
+    // 处理标量外的大括号，例如：int x ={3};
+    if(equal(Tok, "{")){
         initializer2(&Tok, Tok->Next, Init);
         *Rest = skip(Tok, "}");
         return;
@@ -1004,12 +1015,48 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init){
     Init->Expr = assign(Rest, Tok);
 }
 
+// 复制结构体的类型
+static Type *copyStructType(Type *Ty) {
+    // 复制结构体的类型
+    Ty = copyType(Ty);
+
+    // 复制结构体成员的类型
+    Member Head = {};
+    Member *Cur = &Head;
+    // 遍历成员
+    for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+        Member *M = calloc(1, sizeof(Member));
+        *M = *Mem;
+        Cur->Next = M;
+        Cur = Cur->Next;
+    }
+
+    Ty->Mems = Head.Next;
+    return Ty;
+}
+
 // 初始化器
-static Initializer *initializer(Token **Rest, Token *Tok, Type *Ty, Type **NewTy) {
+static Initializer *initializer(Token **Rest, Token *Tok, Type *Ty, Type **NewTy){
     // 新建一个解析了类型的初始化器
     Initializer *Init = newInitializer(Ty, true);
     // 解析需要赋值到Init中
     initializer2(Rest, Tok, Init);
+    if ((Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION) && Ty->IsFlexible) {
+        // 复制结构体类型
+        Ty = copyStructType(Ty);
+        Member *Mem = Ty->Mems;
+        // 遍历到最后一个成员
+        while (Mem->Next){
+            Mem = Mem->Next;
+        }
+        // 灵活数组类型替换为实际的数组类型
+        Mem->Ty = Init->Children[Mem->Idx]->Ty;
+        // 增加结构体的类型大小
+        Ty->Size += Mem->Ty->Size;
+        // 将新类型传回变量
+        *NewTy = Ty;
+        return Init;
+    }
     // 将新类型传回变量
     *NewTy = Init->Ty;
     return Init;
@@ -1022,7 +1069,7 @@ static Node *initDesigExpr(InitDesig *Desig, Token *Tok){
         return newVarNode(Desig->Var, Tok);
     }
     // 返回Desig中的成员变量
-    if (Desig->Mem) {
+    if(Desig->Mem){
         Node *Nd = newUnary(ND_MEMBER, initDesigExpr(Desig->Next, Tok), Tok);
         Nd->Mem = Desig->Mem;
         return Nd;
@@ -1053,20 +1100,20 @@ static Node *createLVarInit(Initializer *Init, Type *Ty, InitDesig *Desig, Token
         return Nd;
     }
     // 被其他结构体赋过值，则会存在Expr因而不解析
-    if (Ty->Kind == TY_STRUCT && !Init->Expr) {
+    if(Ty->Kind == TY_STRUCT && !Init->Expr){
         // 构造结构体的初始化器结构
         Node *Nd = newNode(ND_NULL_EXPR, Tok);
-        for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+        for(Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
             // Desig2存储了成员变量
-            InitDesig Desig2 = {Desig, 0, Mem};
+            InitDesig Desig2 ={Desig, 0, Mem};
             Node *RHS = createLVarInit(Init->Children[Mem->Idx], Mem->Ty, &Desig2, Tok);
             Nd = newBinary(ND_COMMA, Nd, RHS, Tok);
         }
         return Nd;
     }
-    if (Ty->Kind == TY_UNION) {
+    if(Ty->Kind == TY_UNION){
         // Desig2存储了成员变量
-        InitDesig Desig2 = {Desig, 0, Ty->Mems};
+        InitDesig Desig2 ={Desig, 0, Ty->Mems};
         // 只处理第一个成员变量
         return createLVarInit(Init->Children[0], Ty->Mems->Ty, &Desig2, Tok);
     }
@@ -1084,7 +1131,7 @@ static Node *LVarInitializer(Token **Rest, Token *Tok, Obj *Var){
     // 获取初始化器，将值与数据结构一一对应
     Initializer *Init = initializer(Rest, Tok, Var->Ty, &Var->Ty);
     // 指派初始化
-    InitDesig Desig = {NULL, 0, NULL, Var};
+    InitDesig Desig ={NULL, 0, NULL, Var};
     // 我们首先为所有元素赋0，然后有指定值的再进行赋值
     Node *LHS = newNode(ND_MEMZERO, Tok);
     LHS->Var = Var;
@@ -1095,17 +1142,17 @@ static Node *LVarInitializer(Token **Rest, Token *Tok, Obj *Var){
 }
 
 // 临时转换Buf类型对Val进行存储
-static void writeBuf(char *Buf, uint64_t Val, int Sz) {
-    if (Sz == 1){
+static void writeBuf(char *Buf, uint64_t Val, int Sz){
+    if(Sz == 1){
         *Buf = Val;
     }
-    else if (Sz == 2){
+    else if(Sz == 2){
         *(uint16_t *)Buf = Val;
     }
-    else if (Sz == 4){
+    else if(Sz == 4){
         *(uint32_t *)Buf = Val;
     }
-    else if (Sz == 8){
+    else if(Sz == 8){
         *(uint64_t *)Buf = Val;
     }
     else{
@@ -1114,30 +1161,30 @@ static void writeBuf(char *Buf, uint64_t Val, int Sz) {
 }
 
 // 对全局变量的初始化器写入数据
-static Relocation *writeGVarData(Relocation *Cur, Initializer *Init, Type *Ty, char *Buf, int Offset) {
+static Relocation *writeGVarData(Relocation *Cur, Initializer *Init, Type *Ty, char *Buf, int Offset){
     // 处理数组
-    if (Ty->Kind == TY_ARRAY) {
+    if(Ty->Kind == TY_ARRAY){
         int Sz = Ty->Base->Size;
-        for (int I = 0; I < Ty->ArrayLen; I++){
+        for(int I = 0; I < Ty->ArrayLen; I++){
             Cur = writeGVarData(Cur, Init->Children[I], Ty->Base, Buf, Offset + Sz * I);
         }
         return Cur;
     }
     // 处理结构体
-    if (Ty->Kind == TY_STRUCT) {
-        for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
+    if(Ty->Kind == TY_STRUCT){
+        for(Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
             Cur = writeGVarData(Cur, Init->Children[Mem->Idx], Mem->Ty, Buf, Offset + Mem->Offset);
         }
         return Cur;
     }
 
     // 处理联合体
-    if (Ty->Kind == TY_UNION) {
+    if(Ty->Kind == TY_UNION){
         return writeGVarData(Cur, Init->Children[0], Ty->Mems->Ty, Buf, Offset);
     }
 
     // 这里返回，则会使Buf值为0
-    if (!Init->Expr){
+    if(!Init->Expr){
         return Cur;
     }
 
@@ -1146,7 +1193,7 @@ static Relocation *writeGVarData(Relocation *Cur, Initializer *Init, Type *Ty, c
     uint64_t Val = eval2(Init->Expr, &Label);
 
     // 如果不存在Label，说明可以直接计算常量表达式的值
-    if (!Label) {
+    if(!Label){
         writeBuf(Buf + Offset, Val, Ty->Size);
         return Cur;
     }
@@ -1162,12 +1209,12 @@ static Relocation *writeGVarData(Relocation *Cur, Initializer *Init, Type *Ty, c
 }
 
 // 全局变量在编译时需计算出初始化的值，然后写入.data段。
-static void GVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
+static void GVarInitializer(Token **Rest, Token *Tok, Obj *Var){
     // 获取到初始化器
     Initializer *Init = initializer(Rest, Tok, Var->Ty, &Var->Ty);
     // 写入计算过后的数据
     // 新建一个重定向的链表
-    Relocation Head = {};
+    Relocation Head ={};
     char *Buf = calloc(1, Var->Ty->Size);
     writeGVarData(&Head, Init, Var->Ty, Buf, 0);
     // 全局变量的数据
@@ -1509,7 +1556,7 @@ static int64_t eval(Node *Nd){
 
 // 计算给定节点的常量表达式计算
 // 常量表达式可以是数字或者是 ptr±n，ptr是指向全局变量的指针，n是偏移量。
-static int64_t eval2(Node *Nd, char **Label) {
+static int64_t eval2(Node *Nd, char **Label){
     addType(Nd);
     switch(Nd->Kind){
         case ND_ADD:
@@ -1559,11 +1606,11 @@ static int64_t eval2(Node *Nd, char **Label) {
             if(isInteger(Nd->Ty)){
                 switch(Nd->Ty->Size){
                     case 1:
-                        return (uint8_t)Val;
+                        return(uint8_t)Val;
                     case 2:
-                        return (uint16_t)Val;
+                        return(uint16_t)Val;
                     case 4:
-                        return (uint32_t)Val;
+                        return(uint32_t)Val;
                 }
             }
             return Val;
@@ -1572,22 +1619,22 @@ static int64_t eval2(Node *Nd, char **Label) {
             return evalRVal(Nd->LHS, Label);
         case ND_MEMBER:
             // 未开辟Label的地址，则表明不是表达式常量
-            if (!Label){
+            if(!Label){
                 errorTok(Nd->Tok, "not a compile-time constant");
             }
             // 不能为数组
-            if (Nd->Ty->Kind != TY_ARRAY){
+            if(Nd->Ty->Kind != TY_ARRAY){
                 errorTok(Nd->Tok, "invalid initializer");
             }
             // 返回左部的值（并解析Label），加上成员变量的偏移量
             return evalRVal(Nd->LHS, Label) + Nd->Mem->Offset;
         case ND_VAR:
             // 未开辟Label的地址，则表明不是表达式常量
-            if (!Label){
+            if(!Label){
                 errorTok(Nd->Tok, "not a compile-time constant");
             }
             // 不能为数组或者函数
-            if (Nd->Var->Ty->Kind != TY_ARRAY && Nd->Var->Ty->Kind != TY_FUNC){
+            if(Nd->Var->Ty->Kind != TY_ARRAY && Nd->Var->Ty->Kind != TY_FUNC){
                 errorTok(Nd->Tok, "invalid initializer");
             }
             *Label = Nd->Var->Name;
@@ -1603,11 +1650,11 @@ static int64_t eval2(Node *Nd, char **Label) {
 }
 
 // 计算重定位变量
-static int64_t evalRVal(Node *Nd, char **Label) {
-    switch (Nd->Kind) {
+static int64_t evalRVal(Node *Nd, char **Label){
+    switch(Nd->Kind){
         case ND_VAR:
             // 局部变量不能参与全局变量的初始化
-            if (Nd->Var->IsLocal){
+            if(Nd->Var->IsLocal){
                 errorTok(Nd->Tok, "not a compile-time constant");
             }
             *Label = Nd->Var->Name;
@@ -2097,8 +2144,10 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty){
     }
 
     // 解析灵活数组成员，数组大小设为0
-    if (Cur != &Head && Cur->Ty->Kind == TY_ARRAY && Cur->Ty->ArrayLen < 0){
+    if(Cur != &Head && Cur->Ty->Kind == TY_ARRAY && Cur->Ty->ArrayLen < 0){
         Cur->Ty = arrayOf(Cur->Ty->Base, 0);
+        // 设置类型为灵活的
+        Ty->IsFlexible = true;
     }
 
     *Rest = Tok->Next;
@@ -2509,7 +2558,7 @@ static Token *globalVariable(Token *Tok, Type *Basety){
         Type *Ty = declarator(&Tok, Tok, Basety);
             // 全局变量初始化
         Obj *Var = newGVar(getIdent(Ty->Name), Ty);
-        if (equal(Tok, "=")){
+        if(equal(Tok, "=")){
             GVarInitializer(&Tok, Tok->Next, Var);
         }
     }

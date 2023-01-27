@@ -220,46 +220,48 @@ Obj *parse(Token *Tok);
 
 // 类型种类
 typedef enum{
-    TY_VOID,        // void类型
-    TY_BOOL,        // _Bool布尔类型
-    TY_CHAR,        // char字符类型
-    TY_SHORT,       // short短整型
-    TY_INT,         // int整型
-    TY_LONG,        // long长整型
-    TY_ENUM,        // enum枚举类型
-    TY_PTR,         // 指针
-    TY_FUNC,        // 函数
-    TY_ARRAY,       // 数组
-    TY_STRUCT,      // 结构体
-    TY_UNION,       // 联合体
+    TY_VOID,            // void类型
+    TY_BOOL,            // _Bool布尔类型
+    TY_CHAR,            // char字符类型
+    TY_SHORT,           // short短整型
+    TY_INT,             // int整型
+    TY_LONG,            // long长整型
+    TY_ENUM,            // enum枚举类型
+    TY_PTR,             // 指针
+    TY_FUNC,            // 函数
+    TY_ARRAY,           // 数组
+    TY_STRUCT,          // 结构体
+    TY_UNION,           // 联合体
 } TypeKind;
 
 struct Type{
-    TypeKind Kind;  // 种类
-    int Size;       // 大小, sizeof返回的值
-    int Align;      // 对齐
+    TypeKind Kind;      // 种类
+    int Size;           // 大小, sizeof返回的值
+    int Align;          // 对齐
     // 指针
-    Type *Base;     // 指向的类型
+    Type *Base;         // 指向的类型
     // 类型对应名称，如：变量名、函数名
     Token *Name;
     // 数组
-    int ArrayLen;   // 数组长度, 元素总个数
+    int ArrayLen;       // 数组长度, 元素总个数
     // 结构体
     Member *Mems;
+    bool IsFlexible;    // 是否为灵活的
+
     // 函数类型
-    Type *ReturnTy; // 函数返回的类型
-    Type *Params;   // 形参
-    Type *Next;     // 下一类型
+    Type *ReturnTy;     // 函数返回的类型
+    Type *Params;       // 形参
+    Type *Next;         // 下一类型
 };
 
 // 结构体成员
 struct Member{
-    Member *Next;   // 下一成员
-    Type *Ty;       // 类型
-    Token *Tok;     // 用于报错信息
-    Token *Name;    // 名称
-    int Idx;        // 索引值
-    int Offset;     // 偏移量
+    Member *Next;       // 下一成员
+    Type *Ty;           // 类型
+    Token *Tok;         // 用于报错信息
+    Token *Name;        // 名称
+    int Idx;            // 索引值
+    int Offset;         // 偏移量
 };
 
 // 声明一个全局变量，定义在type.c中。
