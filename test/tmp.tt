@@ -1,6 +1,9 @@
-typedef struct {char a, b[];} T65;
-T65 g65 = {'f', 'o', 'o', 0};
+int ext1 = 5;
+int *ext2 = &ext1;
+
+extern int ext1;
+extern int *ext2;
 
 int main(){
-  g65;
+  return ext1;
 }
