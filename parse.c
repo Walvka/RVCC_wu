@@ -35,6 +35,7 @@ typedef struct{
     bool IsTypedef; // 是否为类型别名
     bool IsStatic;  // 是否为文件域内
     bool IsExtern;  // 是否为外部变量
+    int Align;      // 对齐量
 } VarAttr;
 
 // 可变的初始化器。此处为树状结构。
@@ -90,6 +91,7 @@ static Node *CurrentSwitch;
 // functionDefinition = declspec declarator "(" ")" "{" compoundStmt*
 // declspec =("void" | "_Bool" | "char" | "short" | "int" | "long"
 //             | "typedef" | "static" | "extern"
+//             | "_Alignas" ("(" typeName | constExpr ")")
 //             | structDecl | unionDecl | typedefName
 //             | enumSpecifier)+
 // enumSpecifier = ident? "{" enumList? "}"
@@ -160,6 +162,7 @@ static Node *CurrentSwitch;
 //         | "(" expr ")"
 //         | "sizeof" "(" typeName ")"
 //         | "sizeof" unary
+//         | "_Alignof" "(" typeName ")"
 //         | ident funcArgs?
 //         | str
 //         | num
@@ -170,10 +173,11 @@ static Node *CurrentSwitch;
 static bool isTypename(Token *Tok);
 static Node *program(Token **Rest, Token *Tok );
 static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr);
+static Type *typename(Token **Rest, Token *Tok);
 static Type *enumSpecifier(Token **Rest, Token *Tok);
 static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty);
 static Type *declarator(Token **Rest, Token *Tok, Type *Ty);
-static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy);
+static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy, VarAttr *Attr);
 static void initializer2(Token **Rest, Token *Tok, Initializer *Init);
 static Initializer *initializer(Token **Rest, Token *Tok, Type *Ty, Type **NewTy);
 static Node *LVarInitializer(Token **Rest, Token *Tok, Obj *Var);
@@ -375,6 +379,8 @@ static Obj *newVar(char *Name, Type *Ty){
     Obj *Var = calloc(1, sizeof(Obj));
     Var->Name = Name;
     Var->Ty = Ty;
+    // 设置变量默认的对齐量为类型的对齐量
+    Var->Align = Ty->Align;
     pushScope(Name)->Var = Var;
     return Var;
 }
@@ -449,6 +455,7 @@ static void pushTagScope(Token *Tok, Type *Ty){
 
 // declspec =("void" | "_Bool" | "char" | "short" | "int" | "long"
 //             | "typedef" | "static" | "extern"
+//             | "_Alignas" ("(" typeName | constExpr ")")
 //             | structDecl | unionDecl | typedefName
 //             | enumSpecifier)+
 // declarator specifier
@@ -491,6 +498,25 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr){
             Tok = Tok->Next;
             continue;
         }
+
+        // _Alignas "(" typeName | constExpr ")"
+        if (equal(Tok, "_Alignas")) {
+            // 不存在变量属性时，无法设置对齐值
+            if (!Attr){
+                errorTok(Tok, "_Alignas is not allowed in this context");
+            }
+            Tok = skip(Tok->Next, "(");
+            // 判断是类型名，或者常量表达式
+            if (isTypename(Tok)){
+                Attr->Align = typename(&Tok, Tok)->Align;
+            }
+            else{
+                Attr->Align = constExpr(&Tok, Tok);
+            }
+            Tok = skip(Tok, ")");
+            continue;
+        }
+
         // 处理用户定义的类型
         Type *Ty2 = findTypedef(Tok);
         if(equal(Tok, "struct") || equal(Tok, "union") || 
@@ -795,7 +821,7 @@ static Type *enumSpecifier(Token **Rest, Token *Tok){
 
 // declaration = declspec(declarator("=" initializer)?
 //                      ("," declarator("=" initializer)?)*)? ";"
-static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy){
+static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy, VarAttr *Attr){
     Node Head ={};
     Node *Cur = &Head;
     // 对变量声明次数计数
@@ -807,7 +833,6 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy){
         if(I++ > 0){
             Tok = skip(Tok, ",");
         }
-
         // declarator
         // 声明获取到变量类型，包括变量名
         Type *Ty = declarator(&Tok, Tok, BaseTy);
@@ -815,6 +840,10 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy){
             errorTok(Tok, "variable declared void");
         }
         Obj *Var = newLVar(getIdent(Ty->Name), Ty);
+        // 读取是否存在变量的对齐值
+        if (Attr && Attr->Align){
+            Var->Align = Attr->Align;
+        }
         // 如果不存在"="则为变量声明，不需要生成节点，已经存储在Locals中了
         if(equal(Tok, "=")){
             // 解析变量的初始化器
@@ -1242,9 +1271,9 @@ static void GVarInitializer(Token **Rest, Token *Tok, Obj *Var){
 // 判断是否为类型名
 static bool isTypename(Token *Tok){
     static char *Kw[] ={
-        "void",   "_Bool",  "char",  "short",   "int",
-        "long",   "struct", "union", "typedef", "enum",
-        "static", "extern",
+        "void",   "_Bool",   "char",     "short",   "int",
+        "long",   "struct",  "union",    "typedef", "enum",
+        "static", "extern",  "_Alignas",
     };
 
     for(int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I){
@@ -1382,7 +1411,7 @@ static Node *stmt(Token **Rest, Token *Tok){
         if(isTypename(Tok)){
             // 初始化循环变量
             Type *BaseTy = declspec(&Tok, Tok, NULL);
-            Nd->Init = declaration(&Tok, Tok, BaseTy);
+            Nd->Init = declaration(&Tok, Tok, BaseTy, NULL);
         } 
         else{
             // 初始化语句
@@ -1530,7 +1559,7 @@ static Node *compoundStmt(Token **Rest, Token *Tok){
             }
 
             // 解析变量声明语句
-            Cur->Next = declaration(&Tok, Tok, BaseTy);
+            Cur->Next = declaration(&Tok, Tok, BaseTy, &Attr);
         }
         // stmt
         else{
@@ -2151,7 +2180,8 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty){
 
     while(!equal(Tok, "}")){
         // declspec
-        Type *BaseTy = declspec(&Tok, Tok, NULL);
+        VarAttr Attr = {};
+        Type *BaseTy = declspec(&Tok, Tok, &Attr);
         int First = true;
 
         while(!consume(&Tok, Tok, ";")){
@@ -2167,6 +2197,8 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty){
 
             // 成员变量对应的索引值
             Mem->Idx = Idx++;
+            // 设置对齐值
+            Mem->Align = Attr.Align ? Attr.Align : Mem->Ty->Align;
             Cur = Cur->Next = Mem;
         }
     }
@@ -2233,11 +2265,11 @@ static Type *structDecl(Token **Rest, Token *Tok){
     // 计算结构体内成员的偏移量
     int Offset = 0;
     for(Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
-        Offset = alignTo(Offset, Mem->Ty->Align);
+        Offset = alignTo(Offset, Mem->Align);
         Mem->Offset = Offset;
         Offset += Mem->Ty->Size;
-        if(Ty->Align < Mem->Ty->Align){
-            Ty->Align = Mem->Ty->Align;
+        if(Ty->Align < Mem->Align){
+            Ty->Align = Mem->Align;
         }
     }
     Ty->Size = alignTo(Offset, Ty->Align);
@@ -2252,8 +2284,8 @@ static Type *unionDecl(Token **Rest, Token *Tok){
 
     // 联合体需要设置为最大的对齐量与大小，变量偏移量都默认为0
     for(Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
-        if(Ty->Align < Mem->Ty->Align){
-            Ty->Align = Mem->Ty->Align;
+        if(Ty->Align < Mem->Align){
+            Ty->Align = Mem->Align;
         }
         if(Ty->Size < Mem->Ty->Size){
             Ty->Size = Mem->Ty->Size;
@@ -2406,6 +2438,7 @@ static Node *funCall(Token **Rest, Token *Tok){
 //         | "(" expr ")"
 //         | "sizeof" "(" typeName ")"
 //         | "sizeof" unary
+//         | "_Alignof" "(" typeName ")"
 //         | ident funcArgs?
 //         | str
 //         | num
@@ -2438,6 +2471,15 @@ static Node *primary(Token **Rest, Token *Tok){
         Node *Nd = unary(Rest, Tok->Next);
         addType(Nd);
         return newNum(Nd->Ty->Size, Tok);
+    }
+
+    // "_Alignof" "(" typeName ")"
+    // 读取类型的对齐值
+    if (equal(Tok, "_Alignof")){
+        Tok = skip(Tok->Next, "(");
+        Type *Ty = typename(&Tok, Tok);
+        *Rest = skip(Tok, ")");
+        return newNum(Ty->Align, Tok);
     }
 
     // ident
@@ -2588,6 +2630,10 @@ static Token *globalVariable(Token *Tok, Type *Basety, VarAttr *Attr){
         Obj *Var = newGVar(getIdent(Ty->Name), Ty);
         // 是否具有定义
         Var->IsDefinition = !Attr->IsExtern;
+        // 若有设置，则覆盖全局变量的对齐值
+        if (Attr->Align){
+            Var->Align = Attr->Align;
+        }
         if(equal(Tok, "=")){
             GVarInitializer(&Tok, Tok->Next, Var);
         }
