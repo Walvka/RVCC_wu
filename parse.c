@@ -104,7 +104,7 @@ static Node *CurrentSwitch;
 
 // compoundStmt =(typedef | declaration | stmt)* "}"
 // declaration = declspec(declarator("=" initializer)?
-//                       ("," declarator("=" initializer)?)*)? ";"
+//                      ("," declarator("=" initializer)?)*)? ";"
 // initializer = stringInitializer | arrayInitializer | structInitializer
 //             | unionInitializer | assign
 // stringInitializer = stringLiteral
@@ -207,6 +207,9 @@ static Node *unary(Token **Rest, Token *Tok);
 static Node *postfix(Token **Rest, Token *Tok);
 static Node *primary(Token **Rest, Token *Tok );
 static Token *parseTypedef(Token *Tok, Type *BaseTy);
+static bool  isFunction(Token *Tok);
+static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr);
+static Token *globalVariable(Token *Tok, Type *Basety, VarAttr *Attr);
 
 // 进入域
 static void enterScope(void){
@@ -482,7 +485,7 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr){
                 Attr->IsExtern = true;
             }
             // typedef不应与static/extern一起使用
-            if(Attr->IsTypedef && (Attr->IsStatic || Attr->IsExtern)){
+            if(Attr->IsTypedef &&(Attr->IsStatic || Attr->IsExtern)){
                 errorTok(Tok, "typedef and static/extern may not be used together");
             }
             Tok = Tok->Next;
@@ -579,7 +582,7 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty){
     Type *Cur = &Head;
 
       // "void"
-    if (equal(Tok, "void") && equal(Tok->Next, ")")){
+    if(equal(Tok, "void") && equal(Tok->Next, ")")){
         *Rest = Tok->Next->Next;
         return funcType(Ty);
     }
@@ -791,7 +794,7 @@ static Type *enumSpecifier(Token **Rest, Token *Tok){
 }
 
 // declaration = declspec(declarator("=" initializer)?
-//                       ("," declarator("=" initializer)?)*)? ";"
+//                      ("," declarator("=" initializer)?)*)? ";"
 static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy){
     Node Head ={};
     Node *Cur = &Head;
@@ -1029,15 +1032,15 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init){
 }
 
 // 复制结构体的类型
-static Type *copyStructType(Type *Ty) {
+static Type *copyStructType(Type *Ty){
     // 复制结构体的类型
     Ty = copyType(Ty);
 
     // 复制结构体成员的类型
-    Member Head = {};
+    Member Head ={};
     Member *Cur = &Head;
     // 遍历成员
-    for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+    for(Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
         Member *M = calloc(1, sizeof(Member));
         *M = *Mem;
         Cur->Next = M;
@@ -1054,12 +1057,12 @@ static Initializer *initializer(Token **Rest, Token *Tok, Type *Ty, Type **NewTy
     Initializer *Init = newInitializer(Ty, true);
     // 解析需要赋值到Init中
     initializer2(Rest, Tok, Init);
-    if ((Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION) && Ty->IsFlexible) {
+    if((Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION) && Ty->IsFlexible){
         // 复制结构体类型
         Ty = copyStructType(Ty);
         Member *Mem = Ty->Mems;
         // 遍历到最后一个成员
-        while (Mem->Next){
+        while(Mem->Next){
             Mem = Mem->Next;
         }
         // 灵活数组类型替换为实际的数组类型
@@ -1511,6 +1514,18 @@ static Node *compoundStmt(Token **Rest, Token *Tok){
             // 解析typedef的语句
             if(Attr.IsTypedef){
                 Tok = parseTypedef(Tok, BaseTy);
+                continue;
+            }
+
+            // 解析函数
+            if(isFunction(Tok)){
+                Tok = function(Tok, BaseTy, &Attr);
+                continue;
+            }
+
+            // 解析外部全局变量
+            if(Attr.IsExtern){
+                Tok = globalVariable(Tok, BaseTy, &Attr);
                 continue;
             }
 
